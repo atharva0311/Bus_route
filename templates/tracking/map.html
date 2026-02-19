@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Live Bus Tracking{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h4>Live Bus Tracking</h4>
+    <div id="map" style="height: 600px; width: 100%;"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Leaflet JS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-sA+4H6kQx5a7jXzjH9X2bXg+f5w9l2Z7NiGqGJxD9h8=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-oTkkf9BHePsW+K4Y8+LfC3n2Xy7wXuNXX2PiO2XNk/s=" crossorigin=""></script>
+<script src="{% static 'js/live_tracking.js' %}"></script>
+{% endblock %}

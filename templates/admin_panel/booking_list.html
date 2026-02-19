@@ -1,0 +1,56 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Manage Bookings - BusTrack{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-ticket-perforated me-2"></i>All Bookings</h2>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>User</th>
+                        <th>Passenger</th>
+                        <th>Bus</th>
+                        <th>Route</th>
+                        <th>Travel Date</th>
+                        <th>Seats</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Booked At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                    <tr>
+                        <td><strong>{{ booking.booking_id }}</strong></td>
+                        <td>{{ booking.user.username }}</td>
+                        <td>{{ booking.passenger_name }}</td>
+                        <td>{{ booking.bus.bus_name }}</td>
+                        <td>{{ booking.bus.route|default:"-" }}</td>
+                        <td>{{ booking.travel_date }}</td>
+                        <td>{{ booking.seats_booked }}</td>
+                        <td>${{ booking.total_fare }}</td>
+                        <td>
+                            <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                {{ booking.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ booking.booked_at|date:"M d, H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">No bookings yet</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

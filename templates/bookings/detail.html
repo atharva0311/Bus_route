@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+
+{% block title %}Booking {{ booking.booking_id }} - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'bookings:list' %}">My Bookings</a></li>
+            <li class="breadcrumb-item active">{{ booking.booking_id }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">Booking #{{ booking.booking_id }}</h5>
+                        <small class="text-muted">Booked on {{ booking.booked_at|date:"F d, Y H:i" }}</small>
+                    </div>
+                    <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %} fs-6">
+                        {{ booking.get_status_display }}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Journey Details</h6>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="text-center">
+                                    <i class="bi bi-geo-alt text-primary"></i>
+                                    <h6 class="mb-0 mt-2">{{ booking.boarding_point|default:booking.bus.route.source }}</h6>
+                                    <strong>{{ booking.bus.departure_time|time:"H:i" }}</strong>
+                                </div>
+                                <div class="mx-4 flex-grow-1">
+                                    <hr class="my-0">
+                                </div>
+                                <div class="text-center">
+                                    <i class="bi bi-geo-alt-fill text-success"></i>
+                                    <h6 class="mb-0 mt-2">{{ booking.dropping_point|default:booking.bus.route.destination }}</h6>
+                                    <strong>{{ booking.bus.arrival_time|time:"H:i" }}</strong>
+                                </div>
+                            </div>
+                            <p><strong>Travel Date:</strong> {{ booking.travel_date|date:"l, F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Bus Details</h6>
+                            <p class="mb-1"><strong>{{ booking.bus.bus_name }}</strong></p>
+                            <p class="mb-1">{{ booking.bus.bus_number }}</p>
+                            <span class="badge bg-info">{{ booking.bus.get_bus_type_display }}</span>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Passenger Details</h6>
+                            <p class="mb-1"><strong>Name:</strong> {{ booking.passenger_name }}</p>
+                            <p class="mb-1"><strong>Phone:</strong> {{ booking.passenger_phone }}</p>
+                            {% if booking.passenger_email %}
+                            <p class="mb-1"><strong>Email:</strong> {{ booking.passenger_email }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted">Payment Details</h6>
+                            <p class="mb-1"><strong>Seats:</strong> {{ booking.seats_booked }}</p>
+                            <p class="mb-1"><strong>Fare per seat:</strong> ${{ booking.bus.fare }}</p>
+                            <p class="mb-0"><strong>Total Amount:</strong> <span class="text-primary fs-5">${{ booking.total_fare }}</span></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex gap-2">
+                        {% if booking.status in 'confirmed,pending' %}
+                        <a href="{% url 'bookings:track' booking.pk %}" class="btn btn-success">
+                            <i class="bi bi-geo-alt me-2"></i>Track Bus
+                        </a>
+                        {% endif %}
+                        {% if booking.can_cancel %}
+                        <a href="{% url 'bookings:cancel' booking.pk %}" class="btn btn-outline-danger">
+                            <i class="bi bi-x-lg me-2"></i>Cancel Booking
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'bookings:list' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Bookings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Important Information</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Arrive 15 minutes before departure</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Carry a valid ID proof</li>
+                        <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Show booking ID at boarding</li>
+                        {% if booking.can_cancel %}
+                        <li><i class="bi bi-exclamation-circle text-warning me-2"></i>Cancellation available before departure</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

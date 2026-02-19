@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}BusTrack - Book & Track Buses{% endblock %}
+
+{% block content %}
+<section class="bg-primary text-white py-5" style="background: linear-gradient(135deg, #e63946 0%, #1d3557 100%);">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">Book Your Bus Journey</h1>
+                <p class="lead mb-4">Track your bus in real-time, book tickets instantly, and travel with confidence.</p>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-lg">
+                    <div class="card-body p-4">
+                        <h5 class="card-title text-dark mb-4">Search Buses</h5>
+                        <form action="{% url 'buses:search' %}" method="get">
+                            <div class="mb-3">
+                                <label class="form-label text-dark">From</label>
+                                <input type="text" name="source" class="form-control" placeholder="Enter source city" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-dark">To</label>
+                                <input type="text" name="destination" class="form-control" placeholder="Enter destination city" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label text-dark">Date</label>
+                                <input type="date" name="date" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-search me-2"></i>Search Buses
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Why Choose BusTrack?</h2>
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100 text-center p-4">
+                    <div class="card-body">
+                        <i class="bi bi-geo-alt text-primary" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">Live Tracking</h5>
+                        <p class="text-muted">Track your bus in real-time with accurate GPS location and ETA updates.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center p-4">
+                    <div class="card-body">
+                        <i class="bi bi-ticket-perforated text-primary" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">Easy Booking</h5>
+                        <p class="text-muted">Book your tickets in just a few clicks with instant confirmation.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 text-center p-4">
+                    <div class="card-body">
+                        <i class="bi bi-shield-check text-primary" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">Secure Payments</h5>
+                        <p class="text-muted">Safe and secure payment processing for peace of mind.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="bg-light py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h2 class="mb-4">Real-Time Bus Tracking</h2>
+                <p class="text-muted mb-4">Never wait at the bus stop wondering when your bus will arrive. With our advanced GPS tracking system, you can:</p>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>See exact bus location on the map</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Get accurate arrival time estimates</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Receive delay notifications</li>
+                    <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Plan your journey better</li>
+                </ul>
+                <a href="{% url 'buses:search' %}" class="btn btn-primary mt-3">
+                    <i class="bi bi-search me-2"></i>Find Buses
+                </a>
+            </div>
+            <div class="col-lg-6">
+                <div id="demo-map" style="height: 300px; border-radius: 0.5rem;"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container text-center">
+        <h2 class="mb-4">Ready to Travel?</h2>
+        <p class="text-muted mb-4">Join thousands of happy travelers who book with BusTrack every day.</p>
+        <a href="{% url 'users:register' %}" class="btn btn-primary btn-lg me-3">
+            <i class="bi bi-person-plus me-2"></i>Sign Up Free
+        </a>
+        <a href="{% url 'buses:search' %}" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-search me-2"></i>Search Buses
+        </a>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var demoMap = L.map('demo-map').setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(demoMap);
+    
+    var busIcon = L.divIcon({
+        html: '<i class="bi bi-bus-front text-primary" style="font-size: 24px;"></i>',
+        iconSize: [30, 30],
+        className: 'bus-marker'
+    });
+    
+    L.marker([19.0760, 72.8777], {icon: busIcon}).addTo(demoMap).bindPopup('Bus #1 - Mumbai');
+    L.marker([28.6139, 77.2090], {icon: busIcon}).addTo(demoMap).bindPopup('Bus #2 - Delhi');
+    L.marker([12.9716, 77.5946], {icon: busIcon}).addTo(demoMap).bindPopup('Bus #3 - Bangalore');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}Driver Dashboard - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2><i class="bi bi-speedometer2 me-2"></i>Driver Dashboard</h2>
+            <p class="text-muted">Welcome, {{ driver.user.get_full_name|default:driver.user.username }}</p>
+        </div>
+    </div>
+    
+    {% if bus %}
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bus-front me-2"></i>Assigned Bus</h5>
+                </div>
+                <div class="card-body">
+                    <h4>{{ bus.bus_name }}</h4>
+                    <p class="text-muted mb-2">{{ bus.bus_number }}</p>
+                    <hr>
+                    <p><strong>Route:</strong> {{ bus.route|default:"Not assigned" }}</p>
+                    <p><strong>Departure:</strong> {{ bus.departure_time }}</p>
+                    <p><strong>Arrival:</strong> {{ bus.arrival_time }}</p>
+                    <p><strong>Type:</strong> {{ bus.get_bus_type_display }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Trip Controls</h5>
+                    <span id="trip-status" class="badge bg-{% if current_trip and current_trip.status == 'running' %}success{% elif current_trip and current_trip.status == 'delayed' %}warning{% else %}secondary{% endif %}">
+                        {% if current_trip %}{{ current_trip.get_status_display }}{% else %}No Trip{% endif %}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="d-grid gap-2">
+                                <button id="start-trip-btn" class="btn btn-success btn-lg" {% if current_trip and current_trip.status == 'running' %}disabled{% endif %}>
+                                    <i class="bi bi-play-fill me-2"></i>Start Trip
+                                </button>
+                                <button id="end-trip-btn" class="btn btn-danger btn-lg" {% if not current_trip or current_trip.status != 'running' %}disabled{% endif %}>
+                                    <i class="bi bi-stop-fill me-2"></i>End Trip
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Update Status</h6>
+                            <div class="btn-group-vertical w-100">
+                                <button class="btn btn-outline-warning status-btn" data-status="delayed">
+                                    <i class="bi bi-clock me-2"></i>Mark as Delayed
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="driver-map" style="height: 300px; border-radius: 0.5rem;"></div>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><strong>GPS Status:</strong></span>
+                            <span id="gps-status" class="badge bg-secondary">Waiting...</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span><strong>Last Update:</strong></span>
+                            <span id="last-update">Never</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No bus assigned to you. Please contact the administrator.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<input type="hidden" id="bus-id" value="{{ bus.id|default:'' }}">
+<input type="hidden" id="trip-id" value="{{ current_trip.id|default:'' }}">
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const busId = document.getElementById('bus-id').value;
+let tripId = document.getElementById('trip-id').value;
+let map, marker;
+let locationInterval;
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (!busId) return;
+    
+    map = L.map('driver-map').setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    
+    if (navigator.geolocation) {
+        startLocationTracking();
+    } else {
+        document.getElementById('gps-status').textContent = 'Not Supported';
+        document.getElementById('gps-status').className = 'badge bg-danger';
+    }
+    
+    document.getElementById('start-trip-btn').addEventListener('click', startTrip);
+    document.getElementById('end-trip-btn').addEventListener('click', endTrip);
+    
+    document.querySelectorAll('.status-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            updateTripStatus(this.dataset.status);
+        });
+    });
+});
+
+function startLocationTracking() {
+    navigator.geolocation.watchPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const speed = position.coords.speed ? (position.coords.speed * 3.6).toFixed(1) : 0;
+            
+            updateMapPosition(lat, lng);
+            sendLocationToServer(lat, lng, speed);
+            
+            document.getElementById('gps-status').textContent = 'Active';
+            document.getElementById('gps-status').className = 'badge bg-success';
+        },
+        function(error) {
+            document.getElementById('gps-status').textContent = 'Error: ' + error.message;
+            document.getElementById('gps-status').className = 'badge bg-danger';
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+    );
+}
+
+function updateMapPosition(lat, lng) {
+    if (marker) {
+        marker.setLatLng([lat, lng]);
+    } else {
+        marker = L.marker([lat, lng]).addTo(map);
+    }
+    map.setView([lat, lng], 15);
+}
+
+function sendLocationToServer(lat, lng, speed) {
+    fetch('/tracking/api/update-location/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            bus_id: busId,
+            latitude: lat,
+            longitude: lng,
+            speed: speed
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.timestamp) {
+            document.getElementById('last-update').textContent = new Date(data.timestamp).toLocaleTimeString();
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function startTrip() {
+    fetch('/tracking/api/trip/start/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bus_id: busId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.trip_id) {
+            tripId = data.trip_id;
+            document.getElementById('trip-id').value = tripId;
+            document.getElementById('trip-status').textContent = 'Running';
+            document.getElementById('trip-status').className = 'badge bg-success';
+            document.getElementById('start-trip-btn').disabled = true;
+            document.getElementById('end-trip-btn').disabled = false;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function endTrip() {
+    fetch('/tracking/api/trip/end/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trip_id: tripId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('trip-status').textContent = 'Completed';
+        document.getElementById('trip-status').className = 'badge bg-secondary';
+        document.getElementById('start-trip-btn').disabled = false;
+        document.getElementById('end-trip-btn').disabled = true;
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function updateTripStatus(status) {
+    if (!tripId) return;
+    
+    fetch('/tracking/api/trip/status/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trip_id: tripId, status: status })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.trip_status) {
+            const statusBadge = document.getElementById('trip-status');
+            statusBadge.textContent = data.trip_status.charAt(0).toUpperCase() + data.trip_status.slice(1);
+            statusBadge.className = 'badge bg-' + (status === 'delayed' ? 'warning' : 'info');
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+</script>
+{% endblock %}

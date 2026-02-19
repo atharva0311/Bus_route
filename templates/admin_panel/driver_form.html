@@ -1,0 +1,77 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}{{ title }} - BusTrack{% endblock %}
+
+{% block admin_content %}
+<div class="mb-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_panel:driver_list' %}">Drivers</a></li>
+            <li class="breadcrumb-item active">{{ title }}</li>
+        </ol>
+    </nav>
+    <h2>{{ title }}</h2>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <h6 class="mb-3">Account Information</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            {{ form.username }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            {{ form.email }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Password</label>
+                            {{ form.password }}
+                            {% if form.instance.pk %}
+                            <small class="text-muted">Leave blank to keep current password</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <h6 class="mb-3">Driver Information</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">License Number</label>
+                            {{ form.license_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Experience (years)</label>
+                            {{ form.experience_years }}
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                {{ form.is_available }}
+                                <label class="form-check-label">Available for trips</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Driver
+                            </button>
+                            <a href="{% url 'admin_panel:driver_list' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

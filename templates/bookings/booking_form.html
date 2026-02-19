@@ -1,0 +1,32 @@
+<form method="post">
+  {% csrf_token %}
+
+  {{ form.travel_date.label }} {{ form.travel_date }}
+
+  <label>Boarding Stop</label>
+  <select name="from_stop" id="id_from_stop" class="form-control">
+    {% for stop in form.fields.from_stop.queryset %}
+      <option value="{{ stop.id }}" data-sequence="{{ stop.sequence_number }}">
+        {{ stop.name }}
+      </option>
+    {% endfor %}
+  </select>
+
+  <label>Destination Stop</label>
+  <select name="to_stop" id="id_to_stop" class="form-control">
+    {% for stop in form.fields.to_stop.queryset %}
+      <option value="{{ stop.id }}" data-sequence="{{ stop.sequence_number }}">
+        {{ stop.name }}
+      </option>
+    {% endfor %}
+  </select>
+
+  {{ form.seats_booked }}
+  {{ form.passenger_name }}
+  {{ form.passenger_phone }}
+  {{ form.passenger_email }}
+
+  <button class="btn btn-primary">Book Now</button>
+</form>
+
+<script src="{% static 'js/booking.js' %}"></script>

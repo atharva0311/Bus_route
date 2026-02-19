@@ -1,0 +1,211 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block admin_content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+    #map-container {
+        height: 500px;
+        width: 100%;
+        position: relative;
+        border-radius: 8px;
+        z-index: 1;
+    }
+
+    #map {
+        height: 100%;
+        width: 100%;
+    }
+
+    .center-target {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        color: #dc3545;
+        font-size: 2rem;
+        pointer-events: none;
+    }
+
+    #route-stats {
+        background: #e9ecef;
+        border-left: 5px solid #0d6efd;
+        padding: 10px;
+        margin-bottom: 15px;
+        display: none;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-map me-2"></i>Route Builder</h2>
+        <a href="{% url 'routes:route_list' %}" class="btn btn-outline-secondary">Back</a>
+    </div>
+
+    <form method="post" id="routeForm">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-lg-4">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Route Details</h5>
+                    </div>
+                    <div class="card-body">
+
+                        <div id="route-stats">
+                            <strong><i class="bi bi-calculator"></i> Calculated:</strong><br>
+                            <span id="stats-text">0 km • 0 min</span>
+                        </div>
+
+                        {% for field in form %}
+                        <div class="mb-2 field-wrapper">
+                            <label class="form-label small fw-bold">{{ field.label }}</label>
+                            {{ field }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="d-grid mb-5">
+                    <button type="submit" class="btn btn-dark btn-lg" id="saveBtn">Save Route</button>
+                </div>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        <div id="map-container">
+                            <div id="map"></div>
+                            <div class="center-target"><i class="bi bi-plus-circle-dotted"></i></div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light d-flex justify-content-between">
+                        <small class="text-muted">Move map to target.</small>
+                        <button type="button" class="btn btn-primary fw-bold" id="addBtn">ADD LOCATION</button>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <h5>Stops:</h5>
+                    <table class="table table-sm" id="stopsTable">
+                        <tbody id="stopsTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <input type="hidden" name="stops_json" id="stopsJson">
+    </form>
+</div>
+
+<script>
+    var map, polyline;
+    var stopsData = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // 1. Safe Hide & Style Inputs
+        function safeHide(keyword) {
+            document.querySelectorAll('.field-wrapper').forEach(div => {
+                let label = div.querySelector('label').innerText.toLowerCase();
+                let input = div.querySelector('input');
+
+                if (label.includes(keyword)) {
+                    div.style.display = 'none';
+                    if (input) { input.removeAttribute('required'); input.value = '0'; }
+                }
+            });
+        }
+
+        // Hide Distance/Duration so they don't confuse you (we auto-fill them)
+        safeHide('distance');
+        safeHide('duration');
+
+        document.querySelectorAll('input, select').forEach(el => el.classList.add('form-control', 'form-control-sm'));
+
+        // 2. Init Map
+        map = L.map('map').setView([16.7050, 74.2433], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        polyline = L.polyline([], { color: 'blue', weight: 4 }).addTo(map);
+
+        // 3. Add Stop
+        document.getElementById('addBtn').addEventListener('click', function () {
+            var center = map.getCenter();
+            var stopId = Date.now();
+            var marker = L.marker([center.lat, center.lng], { draggable: true }).addTo(map);
+            stopsData.push({ id: stopId, lat: center.lat, lng: center.lng, marker: marker });
+
+            var row = document.getElementById("stopsTableBody").insertRow();
+            row.id = "row-" + stopId;
+            row.innerHTML = `<td><input type="text" class="form-control form-control-sm" placeholder="Name" oninput="updateName(${stopId}, this.value)" required></td>
+                             <td><button type="button" class="btn btn-sm btn-danger" onclick="removeStop(${stopId})">X</button></td>`;
+
+            setTimeout(() => row.querySelector('input').focus(), 100);
+            updatePolyline();
+        });
+
+        // 4. Update Name & AUTO-CALCULATE
+        window.updateName = function (id, name) {
+            var stop = stopsData.find(s => s.id === id);
+            if (!stop) return;
+            stop.name = name;
+
+            // Sync Origin/Dest
+            if (stopsData.indexOf(stop) === 0) fillInput('source', name);
+            if (stopsData.indexOf(stop) === stopsData.length - 1) fillInput('destination', name);
+        };
+
+        function fillInput(name, value) {
+            let input = document.getElementById('id_' + name) || document.querySelector(`input[name*="${name}"]`);
+            if (input) input.value = value;
+        }
+
+        function updatePolyline() {
+            var latlngs = stopsData.map(s => [s.lat, s.lng]);
+            polyline.setLatLngs(latlngs);
+
+            // CALCULATE DISTANCE (OSRM)
+            if (stopsData.length >= 2) {
+                var coords = stopsData.map(s => `${s.lng},${s.lat}`).join(';');
+                var url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=false`;
+
+                fetch(url).then(res => res.json()).then(data => {
+                    if (data.routes && data.routes.length > 0) {
+                        var distKm = (data.routes[0].distance / 1000).toFixed(2);
+                        var durMin = Math.round(data.routes[0].duration / 60);
+
+                        // Fill Hidden Fields
+                        fillInput('distance', distKm);
+                        fillInput('duration', durMin);
+
+                        // Show Badge
+                        document.getElementById('route-stats').style.display = 'block';
+                        document.getElementById('stats-text').innerHTML = `${distKm} km • ${durMin} min`;
+                    }
+                });
+            }
+        }
+
+        window.removeStop = function (id) {
+            var idx = stopsData.findIndex(s => s.id === id);
+            if (idx > -1) {
+                map.removeLayer(stopsData[idx].marker);
+                stopsData.splice(idx, 1);
+                document.getElementById("row-" + id).remove();
+                updatePolyline();
+            }
+        };
+
+        document.getElementById("routeForm").addEventListener("submit", function () {
+            var finalStops = [];
+            var rows = document.getElementById("stopsTableBody").rows;
+            for (var i = 0; i < rows.length; i++) {
+                var input = rows[i].querySelector('input');
+                if (stopsData[i] && input) {
+                    finalStops.push({ name: input.value, lat: stopsData[i].lat, lng: stopsData[i].lng });
+                }
+            }
+            document.getElementById("stopsJson").value = JSON.stringify(finalStops);
+        });
+    });
+</script>
+{% endblock %}

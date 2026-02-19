@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Track Bus - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'bookings:list' %}">My Bookings</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'bookings:detail' booking.pk %}">{{ booking.booking_id }}</a></li>
+                    <li class="breadcrumb-item active">Track</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Live Bus Location</h5>
+                    <span id="tracking-status" class="badge bg-info">Connecting...</span>
+                </div>
+                <div class="card-body p-0">
+                    <div id="tracking-map" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Journey Details</h6>
+                </div>
+                <div class="card-body">
+                    <h5>{{ booking.bus.bus_name }}</h5>
+                    <p class="text-muted mb-3">{{ booking.bus.bus_number }}</p>
+                    
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="bi bi-geo-alt text-primary me-2"></i>From</span>
+                        <strong>{{ booking.bus.route.source }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span><i class="bi bi-geo-alt-fill text-success me-2"></i>To</span>
+                        <strong>{{ booking.bus.route.destination }}</strong>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Scheduled Departure</span>
+                        <strong>{{ booking.bus.departure_time|time:"H:i" }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Scheduled Arrival</span>
+                        <strong>{{ booking.bus.arrival_time|time:"H:i" }}</strong>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-clock me-2"></i>Live Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="text-muted">Bus Status</span>
+                        <h5 id="bus-status" class="mb-0">Loading...</h5>
+                    </div>
+                    <div class="mb-3">
+                        <span class="text-muted">Current Speed</span>
+                        <h5 id="bus-speed" class="mb-0">--</h5>
+                    </div>
+                    <div class="mb-3">
+                        <span class="text-muted">Distance Remaining</span>
+                        <h5 id="distance-remaining" class="mb-0">--</h5>
+                    </div>
+                    <div>
+                        <span class="text-muted">Estimated Arrival</span>
+                        <h4 id="eta" class="text-primary mb-0">--</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var map, busMarker, routeLine;
+var busId = {{ booking.bus.id }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    map = L.map('tracking-map').setView([20.5937, 78.9629], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    
+    var busIcon = L.divIcon({
+        html: '<i class="bi bi-bus-front-fill text-primary" style="font-size: 32px;"></i>',
+        iconSize: [32, 32],
+        className: 'bus-icon'
+    });
+    
+    function updateLocation() {
+        fetch('/tracking/api/bus/' + busId + '/')
+            .then(response => {
+                if (!response.ok) throw new Error('No data');
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('tracking-status').textContent = 'Connected';
+                document.getElementById('tracking-status').className = 'badge bg-success';
+                
+                var latlng = [data.latitude, data.longitude];
+                
+                if (busMarker) {
+                    busMarker.setLatLng(latlng);
+                } else {
+                    busMarker = L.marker(latlng, {icon: busIcon}).addTo(map);
+                    map.setView(latlng, 12);
+                }
+                
+                busMarker.bindPopup('<strong>' + data.bus_name + '</strong><br>Speed: ' + data.speed + ' km/h');
+                
+                document.getElementById('bus-status').textContent = 'On Route';
+                document.getElementById('bus-speed').textContent = data.speed.toFixed(1) + ' km/h';
+                
+                if (data.eta) {
+                    document.getElementById('distance-remaining').textContent = data.eta.distance_remaining_km.toFixed(1) + ' km';
+                    var eta = new Date(data.eta.estimated_arrival);
+                    document.getElementById('eta').textContent = eta.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+            })
+            .catch(error => {
+                document.getElementById('tracking-status').textContent = 'Waiting for GPS';
+                document.getElementById('tracking-status').className = 'badge bg-warning';
+                document.getElementById('bus-status').textContent = 'Not Available';
+            });
+    }
+    
+    updateLocation();
+    setInterval(updateLocation, 15000);
+});
+</script>
+{% endblock %}

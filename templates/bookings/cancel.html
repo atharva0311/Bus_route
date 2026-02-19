@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Cancel Booking - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Cancel Booking</h5>
+                </div>
+                <div class="card-body">
+                    <p>Are you sure you want to cancel this booking?</p>
+                    
+                    <div class="bg-light p-3 rounded mb-4">
+                        <p class="mb-1"><strong>Booking ID:</strong> {{ booking.booking_id }}</p>
+                        <p class="mb-1"><strong>Bus:</strong> {{ booking.bus.bus_name }}</p>
+                        <p class="mb-1"><strong>Route:</strong> {{ booking.bus.route }}</p>
+                        <p class="mb-1"><strong>Date:</strong> {{ booking.travel_date }}</p>
+                        <p class="mb-0"><strong>Amount:</strong> ${{ booking.total_fare }}</p>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This action cannot be undone. Refund policies may apply.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-x-lg me-2"></i>Yes, Cancel Booking
+                            </button>
+                            <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>No, Go Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

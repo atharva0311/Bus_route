@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}My Bookings - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-ticket-perforated me-2"></i>My Bookings</h2>
+        <a href="{% url 'buses:search' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-2"></i>New Booking
+        </a>
+    </div>
+    
+    {% if bookings %}
+    <div class="row g-4">
+        {% for booking in bookings %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2">
+                            <strong class="text-primary">{{ booking.booking_id }}</strong>
+                            <br>
+                            <small class="text-muted">{{ booking.booked_at|date:"M d, Y" }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h6 class="mb-0">{{ booking.bus.bus_name }}</h6>
+                            <small class="text-muted">{{ booking.bus.route }}</small>
+                        </div>
+                        <div class="col-md-2">
+                            <i class="bi bi-calendar-event text-muted me-1"></i>
+                            {{ booking.travel_date }}
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                {{ booking.get_status_display }}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ booking.seats_booked }} seat(s)</small>
+                        </div>
+                        <div class="col-md-1">
+                            <strong>${{ booking.total_fare }}</strong>
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-sm btn-outline-primary">Details</a>
+                            {% if booking.status in 'confirmed,pending' %}
+                            <a href="{% url 'bookings:track' booking.pk %}" class="btn btn-sm btn-outline-success">Track</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-ticket-perforated text-muted" style="font-size: 3rem;"></i>
+            <h5 class="mt-3">No bookings yet</h5>
+            <p class="text-muted">Start by searching for buses!</p>
+            <a href="{% url 'buses:search' %}" class="btn btn-primary">Search Buses</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

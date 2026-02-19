@@ -1,0 +1,174 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Admin Dashboard - BusTrack{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Admin Dashboard</h2>
+    <span class="text-muted">Welcome, {{ user.username }}</span>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-bus-front text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ total_buses }}</h3>
+                        <p class="text-muted mb-0">Total Buses</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color: #28a745;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-signpost-2 text-success" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ total_routes }}</h3>
+                        <p class="text-muted mb-0">Routes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color: #17a2b8;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-person-badge text-info" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ total_drivers }}</h3>
+                        <p class="text-muted mb-0">Drivers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card h-100" style="border-left-color: #ffc107;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-people text-warning" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h3 class="mb-0">{{ total_users }}</h3>
+                        <p class="text-muted mb-0">Registered Users</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-ticket-perforated text-primary" style="font-size: 3rem;"></i>
+                <h2 class="mt-2">{{ total_bookings }}</h2>
+                <p class="text-muted mb-0">Total Bookings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-calendar-check text-success" style="font-size: 3rem;"></i>
+                <h2 class="mt-2">{{ today_bookings }}</h2>
+                <p class="text-muted mb-0">Today's Bookings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-bus-front-fill text-info" style="font-size: 3rem;"></i>
+                <h2 class="mt-2">{{ active_trips }}</h2>
+                <p class="text-muted mb-0">Active Trips</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Bookings</h5>
+                <a href="{% url 'admin_panel:booking_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>User</th>
+                                <th>Bus</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in recent_bookings %}
+                            <tr>
+                                <td><strong>{{ booking.booking_id }}</strong></td>
+                                <td>{{ booking.user.username }}</td>
+                                <td>{{ booking.bus.bus_name }}</td>
+                                <td>{{ booking.travel_date }}</td>
+                                <td>
+                                    <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
+                                        {{ booking.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>${{ booking.total_fare }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No bookings yet</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'admin_panel:bus_add' %}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Bus
+                    </a>
+                    <a href="{% url 'routes:add_route' %}" class="btn btn-outline-success">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Route
+                    </a>
+                    <a href="{% url 'admin_panel:driver_add' %}" class="btn btn-outline-info">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Driver
+                    </a>
+                    <a href="{% url 'admin_panel:live_tracking' %}" class="btn btn-outline-warning">
+                        <i class="bi bi-geo-alt me-2"></i>Live Tracking
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

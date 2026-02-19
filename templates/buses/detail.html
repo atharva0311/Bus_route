@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ bus.bus_name }} - BusTrack{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'buses:search' %}">Search</a></li>
+            <li class="breadcrumb-item active">{{ bus.bus_name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h4 class="mb-0">{{ bus.bus_name }}</h4>
+                            <span class="text-muted">{{ bus.bus_number }}</span>
+                        </div>
+                        <span class="badge bg-info">{{ bus.get_bus_type_display }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Route Details</h5>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="text-center">
+                                    <i class="bi bi-geo-alt text-primary" style="font-size: 1.5rem;"></i>
+                                    <h6 class="mb-0 mt-2">{{ bus.route.source }}</h6>
+                                    <strong>{{ bus.departure_time|time:"H:i" }}</strong>
+                                </div>
+                                <div class="mx-4 flex-grow-1">
+                                    <hr class="my-0">
+                                    <small class="text-muted d-block text-center mt-1">{{ bus.route.distance_km }} km</small>
+                                </div>
+                                <div class="text-center">
+                                    <i class="bi bi-geo-alt-fill text-success" style="font-size: 1.5rem;"></i>
+                                    <h6 class="mb-0 mt-2">{{ bus.route.destination }}</h6>
+                                    <strong>{{ bus.arrival_time|time:"H:i" }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Bus Information</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>Type:</strong> {{ bus.get_bus_type_display }}</li>
+                                <li><strong>Total Seats:</strong> {{ bus.total_seats }}</li>
+                                <li><strong>Available:</strong> <span class="text-success">{{ bus.available_seats }}</span></li>
+                                <li><strong>Duration:</strong> {{ bus.route.estimated_duration_minutes }} minutes</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    {% if bus.amenities %}
+                    <div class="mb-4">
+                        <h5>Amenities</h5>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for amenity in bus.amenities.split %}
+                            <span class="badge bg-light text-dark"><i class="bi bi-check-circle text-success me-1"></i>{{ amenity }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if stops %}
+                    <div class="mb-4">
+                        <h5>Route Stops</h5>
+                        <div class="timeline">
+                            {% for stop in stops %}
+                            <div class="d-flex mb-2">
+                                <div class="me-3">
+                                    <i class="bi bi-circle{% if forloop.first or forloop.last %}-fill{% endif %} text-primary"></i>
+                                </div>
+                                <div>
+                                    <strong>{{ stop.name }}</strong>
+                                    {% if stop.estimated_arrival_offset_minutes %}
+                                    <small class="text-muted ms-2">+{{ stop.estimated_arrival_offset_minutes }} min</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if current_trip and current_trip.status == 'running' %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-bus-front me-2"></i>
+                        <strong>Live Tracking Available!</strong> This bus is currently on the road.
+                    </div>
+                    <div id="bus-map" style="height: 300px; border-radius: 0.5rem;"></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card sticky-top" style="top: 20px;">
+                <div class="card-body text-center">
+                    <p class="text-muted mb-1">Fare per seat</p>
+                    <h2 class="text-primary mb-4">${{ bus.fare }}</h2>
+                    <p class="mb-1"><span class="text-success">{{ bus.available_seats }}</span> seats available</p>
+                    <hr>
+                    <a href="{% url 'bookings:book' bus.pk %}?date={{ request.GET.date }}" class="btn btn-primary btn-lg w-100">
+                        <i class="bi bi-ticket-perforated me-2"></i>Book Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if current_trip and current_trip.status == 'running' %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var map = L.map('bus-map').setView([20.5937, 78.9629], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    
+    var busMarker;
+    
+    function updateBusLocation() {
+        fetch('/tracking/api/bus/{{ bus.id }}/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.latitude && data.longitude) {
+                    var latlng = [data.latitude, data.longitude];
+                    if (busMarker) {
+                        busMarker.setLatLng(latlng);
+                    } else {
+                        busMarker = L.marker(latlng).addTo(map);
+                        map.setView(latlng, 12);
+                    }
+                    busMarker.bindPopup('<strong>{{ bus.bus_name }}</strong><br>Speed: ' + data.speed + ' km/h');
+                }
+            })
+            .catch(console.error);
+    }
+    
+    updateBusLocation();
+    setInterval(updateBusLocation, 30000);
+});
+</script>
+{% endif %}
+{% endblock %}

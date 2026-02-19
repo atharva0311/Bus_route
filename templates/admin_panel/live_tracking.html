@@ -1,0 +1,103 @@
+{% extends 'admin_panel/base.html' %}
+
+{% block title %}Live Tracking - BusTrack{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-geo-alt me-2"></i>Live Bus Tracking</h2>
+    <button id="refresh-btn" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+    </button>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="admin-map" style="height: 500px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Active Buses</h6>
+            </div>
+            <div class="card-body p-0">
+                <div id="bus-list" class="list-group list-group-flush" style="max-height: 460px; overflow-y: auto;">
+                    {% for item in bus_locations %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ item.bus.bus_name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ item.bus.bus_number }}</small>
+                            </div>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                        <small class="text-muted">
+                            <i class="bi bi-speedometer2 me-1"></i>{{ item.location.speed_kmh }} km/h
+                        </small>
+                    </div>
+                    {% empty %}
+                    <div class="list-group-item text-center text-muted py-4">
+                        <i class="bi bi-bus-front" style="font-size: 2rem;"></i>
+                        <p class="mb-0 mt-2">No active buses</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var map;
+var markers = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    map = L.map('admin-map').setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+    
+    var busIcon = L.divIcon({
+        html: '<i class="bi bi-bus-front-fill text-primary" style="font-size: 24px;"></i>',
+        iconSize: [24, 24],
+        className: 'bus-marker'
+    });
+    
+    function updateBuses() {
+        fetch('/tracking/api/active-buses/')
+            .then(response => response.json())
+            .then(data => {
+                data.buses.forEach(function(bus) {
+                    var latlng = [bus.latitude, bus.longitude];
+                    
+                    if (markers[bus.bus_id]) {
+                        markers[bus.bus_id].setLatLng(latlng);
+                    } else {
+                        markers[bus.bus_id] = L.marker(latlng, {icon: busIcon}).addTo(map);
+                    }
+                    
+                    markers[bus.bus_id].bindPopup(
+                        '<strong>' + bus.bus_name + '</strong><br>' +
+                        bus.bus_number + '<br>' +
+                        'Speed: ' + bus.speed.toFixed(1) + ' km/h<br>' +
+                        'Route: ' + bus.route
+                    );
+                });
+            })
+            .catch(console.error);
+    }
+    
+    updateBuses();
+    setInterval(updateBuses, 15000);
+    
+    document.getElementById('refresh-btn').addEventListener('click', updateBuses);
+});
+</script>
+{% endblock %}

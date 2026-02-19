@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Book Ticket{% endblock %}
+
+{% block content %}
+<div class="container py-4" data-bus-id="{{ bus.id }}">
+  <div class="row">
+    <div class="col-lg-8">
+      <form method="post" class="card p-4">
+        {% csrf_token %}
+        <h5>Booking Details</h5>
+        <hr>
+
+        {{ form.travel_date.label_tag }}
+        {{ form.travel_date }}
+
+        {{ form.seats_booked.label_tag }}
+        {{ form.seats_booked }}
+        <small class="text-muted d-block mt-1">
+          Available seats: <strong id="available-seats">—</strong>
+        </small>
+
+        <hr>
+        <h6>Select Seats</h6>
+        <div id="seat-layout" data-bus-id="{{ bus.id }}" class="seat-grid mb-3"></div>
+        <input type="hidden" name="selected_seats" id="selected-seats-input">
+
+        <hr>
+        {{ form.from_stop.label_tag }}
+        {{ form.from_stop }}
+        {{ form.to_stop.label_tag }}
+        {{ form.to_stop }}
+
+        <hr>
+        <h6>Passenger Info</h6>
+        {{ form.passenger_name.label_tag }}
+        {{ form.passenger_name }}
+        {{ form.passenger_phone.label_tag }}
+        {{ form.passenger_phone }}
+        {{ form.passenger_email.label_tag }}
+        {{ form.passenger_email }}
+
+        <a href="{% url 'bookings:create_payment' bus.id %}" class="btn btn-success mt-3">
+          Pay with PayPal
+        </a>
+      </form>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card p-3">
+        <h6>{{ bus.bus_name }}</h6>
+        <p class="text-muted">{{ bus.bus_number }}</p>
+        <p>{{ bus.route.source }} → {{ bus.route.destination }}</p>
+        <p>Departure: {{ bus.departure_time }}<br>Arrival: {{ bus.arrival_time }}</p>
+        <hr>
+        <p><strong>Total Fare:</strong> <span id="fare">₹0</span></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/seats.js' %}"></script>
+<script src="{% static 'js/booking.js' %}"></script>
+
+<style>
+.seat-grid { display: grid; grid-template-columns: repeat(4, 48px); gap: 10px; margin-top: 10px; }
+.seat { height: 45px; border: 1px solid #999; border-radius: 6px; background: #f8f9fa; cursor: pointer; font-size: 13px; }
+.seat:hover { background: #e7f1ff; }
+.seat-selected { background: #0d6efd; color: #fff; font-weight: bold; }
+.seat-booked { background: #ccc; cursor: not-allowed; color: #666; }
+</style>
+{% endblock %}
