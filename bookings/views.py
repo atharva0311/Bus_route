@@ -46,8 +46,8 @@ def book_bus(request, bus_id):
             )
             booking.trip = trip
             booking.save()
-            messages.success(request, f"Booking confirmed! Booking ID: {booking.booking_id}")
-            return redirect('bookings:detail', pk=booking.pk)
+            messages.success(request, f"Booking created! Booking ID: {booking.booking_id}")
+            return redirect('bookings:create_payment', booking_id=booking.pk)
     else:
         form = BookingForm(
             bus=bus,
