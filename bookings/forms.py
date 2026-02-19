@@ -101,9 +101,9 @@ class StopSelect(forms.Select):
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
         if value:
             try:
-                stop = Stop.objects.get(pk=value)
+                stop = Stop.objects.get(pk=int(value))
                 option['attrs']['data-sequence'] = stop.sequence_number
-            except Stop.DoesNotExist:
+            except (Stop.DoesNotExist, ValueError, TypeError):
                 pass
         return option
 
