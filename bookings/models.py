@@ -32,21 +32,17 @@ class Booking(models.Model):
         if not self.booking_id:
             self.booking_id = f"BK{uuid.uuid4().hex[:8].upper()}"
 
-        # distance + fare calculation
-        stops = Stop.objects.filter(
-            route=self.bus.route,
-            sequence_number__gt=self.from_stop.sequence_number,
-            sequence_number__lte=self.to_stop.sequence_number
-        )
-        self.distance_km = sum(
-            s.distance_from_previous_km for s in stops
-        )
-
-        self.total_fare = (
-            sum(s.fare_from_previous for s in stops)
-            * self.seats_booked
-        )
-
+        if self.from_stop_id and self.to_stop_id:
+            stops = Stop.objects.filter(
+                route=self.bus.route,
+                sequence_number__gt=self.from_stop.sequence_number,
+                sequence_number__lte=self.to_stop.sequence_number
+            )
+            self.distance_km = sum(s.distance_from_previous_km for s in stops)
+            self.total_fare = sum(s.fare_from_previous for s in stops) * self.seats_booked
+        else:
+            self.distance_km = 0
+            self.total_fare = 0
 
         super().save(*args, **kwargs)
 
