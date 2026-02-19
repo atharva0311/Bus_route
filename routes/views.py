@@ -1,10 +1,23 @@
 import json
+import math
 import traceback
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .forms import RouteForm
 from buses.models import Route, Stop
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    """Calculate distance in km between two lat/lng points."""
+    R = 6371  # Earth radius in km
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = (math.sin(dlat / 2) ** 2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dlon / 2) ** 2)
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
 
 # --- 1. LIST ROUTES (NOW CRASH PROOF) ---
 def route_list(request):
@@ -39,14 +52,25 @@ def add_route(request):
 
                 try:
                     stops = json.loads(stops_json)
+                    prev_lat, prev_lng = None, None
                     for index, stop_data in enumerate(stops):
+                        lat = float(stop_data.get("lat", 0.0))
+                        lng = float(stop_data.get("lng", 0.0))
+
+                        # Calculate distance from previous stop
+                        dist = 0
+                        if prev_lat is not None and prev_lng is not None:
+                            dist = round(_haversine_km(prev_lat, prev_lng, lat, lng), 2)
+
                         Stop.objects.create(
                             route=route,
                             name=stop_data.get("name", f"Stop {index+1}"),
-                            latitude=stop_data.get("lat", 0.0),
-                            longitude=stop_data.get("lng", 0.0),
-                            sequence_number=index + 1
+                            latitude=lat,
+                            longitude=lng,
+                            sequence_number=index + 1,
+                            distance_from_previous_km=dist,
                         )
+                        prev_lat, prev_lng = lat, lng
                 except Exception:
                     pass # Ignore JSON errors for now
 
