@@ -1,220 +1,80 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
+from django import forms
 from django.utils import timezone
-from django.http import JsonResponse
-from django.db import models
-from .models import Booking, Payment
-from .forms import BookingForm
-from buses.models import Bus, Trip, Seat
-from django.views.decorators.http import require_GET
-from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
-from django.urls import reverse
-import uuid
-import paypalrestsdk
+from django.db.models import Sum
+from .models import Booking
 
-# Configure PayPal lazily — only when credentials are available
-_paypal_configured = False
-
-def _ensure_paypal_configured():
-    global _paypal_configured
-    if not _paypal_configured and settings.PAYPAL_CLIENT_ID and settings.PAYPAL_CLIENT_SECRET:
-        paypalrestsdk.configure({
-            "mode": settings.PAYPAL_MODE,
-            "client_id": settings.PAYPAL_CLIENT_ID,
-            "client_secret": settings.PAYPAL_CLIENT_SECRET,
-        })
-        _paypal_configured = True
-
-@login_required
-def book_bus(request, bus_id):
-    bus = get_object_or_404(Bus, pk=bus_id, is_active=True)
-    travel_date = request.GET.get('date', timezone.now().date())
-
-    if request.method == 'POST':
-        form = BookingForm(request.POST, bus=bus)
-        if form.is_valid():
-            booking = form.save(commit=False)
-            booking.user = request.user
-            booking.bus = bus
-
-            trip, _ = Trip.objects.get_or_create(
-                bus=bus,
-                date=booking.travel_date,
-                defaults={'status': 'not_started'}
-            )
-            booking.trip = trip
-            booking.save()
-            messages.success(request, f"Booking created! Booking ID: {booking.booking_id}")
-            return redirect('bookings:create_payment', booking_id=booking.pk)
-    else:
-        form = BookingForm(
-            bus=bus,
-            initial={
-                'travel_date': travel_date,
-                'passenger_name': request.user.get_full_name() or request.user.username,
-                'passenger_email': request.user.email,
-            }
-        )
-
-    return render(request, 'bookings/book.html', {'form': form, 'bus': bus})
-
-@login_required
-def booking_list(request):
-    bookings = Booking.objects.filter(user=request.user)
-    return render(request, 'bookings/list.html', {'bookings': bookings})
-
-@login_required
-def booking_detail(request, pk):
-    booking = get_object_or_404(Booking, pk=pk, user=request.user)
-    return render(request, 'bookings/detail.html', {'booking': booking})
-
-@login_required
-def cancel_booking(request, pk):
-    booking = get_object_or_404(Booking, pk=pk, user=request.user)
-    if booking.status != 'pending':
-        messages.error(request, "This booking cannot be cancelled.")
-        return redirect('bookings:detail', pk=pk)
-
-    booking.status = 'cancelled'
-    booking.save()
-    messages.success(request, "Booking cancelled successfully.")
-    return redirect('bookings:list')
-
-@login_required
-def track_booking(request, pk):
-    booking = get_object_or_404(Booking, pk=pk, user=request.user)
-    return render(request, 'bookings/track.html', {'booking': booking})
-
-
-# ------------------------------
-# Seat availability API
-# ------------------------------
-def booking_seat_status_api(request, bus_id):
-    bus = get_object_or_404(Bus, pk=bus_id)
-    date = request.GET.get("date", timezone.now().date())
-    total = bus.total_seats
-    booked = Booking.objects.filter(
-        bus=bus,
-        travel_date=date,
-        status__in=["confirmed", "pending"]
-    ).aggregate(models.Sum("seats_booked"))["seats_booked__sum"] or 0
-
-    return JsonResponse({
-        "bus_id": bus.id,
-        "total_seats": total,
-        "booked_seats": booked,
-        "available_seats": total - booked
-    })
-
-@require_GET
-def seat_layout_api(request, bus_id):
-    bus = get_object_or_404(Bus, pk=bus_id)
-    date = request.GET.get("date")
-    booked_seats = Booking.objects.filter(
-        bus=bus,
-        travel_date=date,
-        status__in=["pending", "confirmed"]
-    ).values_list("selected_seats__id", flat=True)
-
-    seats = Seat.objects.filter(bus=bus).order_by("seat_number")
-    data = {
-        "bus_id": bus.id,
-        "seats": [
-            {"id": seat.id, "number": seat.seat_number, "is_booked": seat.id in booked_seats}
-            for seat in seats
+class BookingForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = [
+            'travel_date',
+            'from_stop',
+            'to_stop',
+            'seats_booked',
+            'passenger_name',
+            'passenger_phone',
+            'passenger_email',
         ]
-    }
-    return JsonResponse(data)
+        widgets = {
+            'travel_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            # Changed to TextInput and made read-only since there are no intermediate stops
+            'from_stop': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'to_stop': forms.TextInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'seats_booked': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
+            'passenger_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'passenger_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'passenger_email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
 
+    def __init__(self, *args, **kwargs):
+        self.bus = kwargs.pop('bus', None)
+        super().__init__(*args, **kwargs)
 
-# ------------------------------
-# PayPal Payment integration
-# ------------------------------
-@login_required
-def create_payment(request, booking_id):
-    _ensure_paypal_configured()
+        # Auto-fill the origin and destination based on the new Route model
+        if self.bus and self.bus.route:
+            self.fields['from_stop'].initial = self.bus.route.origin
+            self.fields['to_stop'].initial = self.bus.route.destination
 
-    if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
-        messages.error(request, "PayPal is not configured. Please contact the administrator.")
-        return redirect("bookings:detail", pk=booking_id)
+    def clean_travel_date(self):
+        date = self.cleaned_data['travel_date']
+        if date < timezone.now().date():
+            raise forms.ValidationError("Travel date cannot be in the past.")
+        return date
 
-    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
-    if booking.status != "pending":
-        messages.error(request, "This booking cannot be paid for (invalid state).")
-        return redirect("bookings:detail", pk=booking_id)
+    def clean_seats_booked(self):
+        seats = self.cleaned_data.get('seats_booked')
 
-    # Ensure fare is not zero — PayPal rejects $0 payments
-    fare = booking.total_fare
-    if not fare or fare <= 0:
-        # If fare is 0 (stops have no fare set), confirm booking directly
-        booking.status = "confirmed"
-        booking.save()
-        messages.success(request, f"Booking {booking.booking_id} confirmed! (No payment required)")
-        return redirect("bookings:detail", pk=booking.pk)
+        if seats < 1:
+            raise forms.ValidationError("At least 1 seat must be booked.")
 
-    payment = paypalrestsdk.Payment({
-        "intent": "sale",
-        "payer": {"payment_method": "paypal"},
-        "redirect_urls": {
-            "return_url": request.build_absolute_uri(reverse("bookings:payment_success")),
-            "cancel_url": request.build_absolute_uri(reverse("bookings:payment_cancel")),
-        },
-        "transactions": [{
-            "item_list": {"items": [{
-                "name": f"Booking {booking.booking_id}",
-                "sku": f"{booking.booking_id}",
-                "price": str(fare),
-                "currency": "USD",
-                "quantity": 1
-            }]},
-            "amount": {"total": str(fare), "currency": "USD"},
-            "description": f"Payment for booking {booking.booking_id}"
-        }]
-    })
+        if seats > 10:
+            raise forms.ValidationError("Maximum 10 seats allowed.")
 
-    if payment.create():
-        Payment.objects.create(
-            booking=booking,
-            order_id=payment.id,
-            amount=fare,
-            status="created"
-        )
-        for link in payment.links:
-            if link.rel == "approval_url":
-                return redirect(link.href)
+        return seats
 
-    # Show actual PayPal error
-    error_detail = getattr(payment, 'error', 'Unknown error')
-    messages.error(request, f"PayPal error: {error_detail}")
-    return redirect("bookings:detail", pk=booking.pk)
+    def clean(self):
+        cleaned = super().clean()
+        travel_date = cleaned.get('travel_date')
+        seats_requested = cleaned.get('seats_booked')
 
+        if not all([travel_date, seats_requested, self.bus]):
+            return cleaned
 
-@login_required
-def payment_success(request):
-    payment_id = request.GET.get("paymentId")
-    payer_id = request.GET.get("PayerID")
+        # -----------------------------
+        # SIMPLIFIED SEAT VALIDATION
+        # -----------------------------
+        # Since we don't have multiple stops, we just check total bookings for this bus on this date
+        booked_seats = Booking.objects.filter(
+            bus=self.bus,
+            travel_date=travel_date,
+            status__in=['pending', 'confirmed']
+        ).aggregate(total=Sum('seats_booked'))['total'] or 0
 
-    _ensure_paypal_configured()
-    payment = paypalrestsdk.Payment.find(payment_id)
-    if payment.execute({"payer_id": payer_id}):
-        payment_obj = get_object_or_404(Payment, order_id=payment.id)
-        payment_obj.status = "success"
-        payment_obj.payment_id = payment.id
-        payment_obj.save()
+        available_seats = self.bus.total_seats - booked_seats
 
-        booking = payment_obj.booking
-        booking.status = "confirmed"
-        booking.save()
-        messages.success(request, f"Payment successful! Booking ID: {booking.booking_id}")
-        return redirect("bookings:detail", pk=booking.id)
-    else:
-        messages.error(request, "Payment failed")
-        return redirect("bookings:list")
+        if seats_requested > available_seats:
+            raise forms.ValidationError(
+                f"Only {available_seats} seat(s) available for this bus."
+            )
 
-
-@login_required
-def payment_cancel(request):
-    messages.warning(request, "Payment cancelled")
-    return redirect("bookings:list")
+        return cleaned
