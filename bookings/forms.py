@@ -94,6 +94,20 @@ from .models import Booking
 from buses.models import Stop
 
 
+class StopSelect(forms.Select):
+    """Custom Select widget that adds data-sequence to each <option>."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value:
+            try:
+                stop = Stop.objects.get(pk=value)
+                option['attrs']['data-sequence'] = stop.sequence_number
+            except Stop.DoesNotExist:
+                pass
+        return option
+
+
 class BookingForm(forms.ModelForm):
     class Meta:
         model = Booking
@@ -108,8 +122,8 @@ class BookingForm(forms.ModelForm):
         ]
         widgets = {
             'travel_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'from_stop': forms.Select(attrs={'class': 'form-control'}),
-            'to_stop': forms.Select(attrs={'class': 'form-control'}),
+            'from_stop': StopSelect(attrs={'class': 'form-control'}),
+            'to_stop': StopSelect(attrs={'class': 'form-control'}),
             'seats_booked': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 10}),
             'passenger_name': forms.TextInput(attrs={'class': 'form-control'}),
             'passenger_phone': forms.TextInput(attrs={'class': 'form-control'}),
