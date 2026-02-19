@@ -95,18 +95,18 @@ from buses.models import Stop
 
 
 class StopSelect(forms.Select):
-    """Custom Select widget that adds data-sequence to each <option>."""
-
+    """Custom Select widget that adds data-sequence and data-fare to each <option>."""
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
         option = super().create_option(name, value, label, selected, index, subindex, attrs)
         if value:
             try:
                 stop = Stop.objects.get(pk=int(value))
                 option['attrs']['data-sequence'] = stop.sequence_number
+                # Added this line to send the price to the frontend
+                option['attrs']['data-fare'] = float(stop.fare_from_previous)
             except (Stop.DoesNotExist, ValueError, TypeError):
                 pass
         return option
-
 
 class BookingForm(forms.ModelForm):
     class Meta:
