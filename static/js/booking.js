@@ -7,30 +7,31 @@ document.addEventListener("DOMContentLoaded", function () {
   const container = document.querySelector("[data-bus-id]");
   const busId = container ? container.dataset.busId : null;
 
-  // Save ALL original to-stop options when page loads
-  const allToOptions = Array.from(toStop.options).map(opt => ({
+  // Save ALL original to-stop options using their physical order (index)
+  const allToOptions = Array.from(toStop.options).map((opt, index) => ({
     value: opt.value,
     text: opt.text,
-    sequence: parseInt(opt.dataset.sequence) || 0
+    originalIndex: index
   }));
 
   function filterToStops() {
-    const selectedOption = fromStop.options[fromStop.selectedIndex];
-    const fromSeq = selectedOption ? parseInt(selectedOption.dataset.sequence) || 0 : 0;
+    // Get the physical position of the selected "From" stop
+    const selectedIndex = fromStop.selectedIndex;
 
     // Clear and rebuild the "To stop" dropdown
     toStop.innerHTML = "";
+    
     allToOptions.forEach(function (optData) {
-      if (!optData.value || optData.sequence > fromSeq) {
+      // Keep the blank option, OR keep stops that are physically AFTER the selected From stop
+      if (!optData.value || optData.originalIndex > selectedIndex) {
         const newOpt = document.createElement("option");
         newOpt.value = optData.value;
         newOpt.text = optData.text;
-        if (optData.sequence) newOpt.dataset.sequence = optData.sequence;
         toStop.appendChild(newOpt);
       }
     });
 
-    toStop.value = "";
+    toStop.value = ""; // Reset the destination selection
     updateSeats();
   }
 
