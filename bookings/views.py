@@ -135,9 +135,24 @@ def seat_layout_api(request, bus_id):
 @login_required
 def create_payment(request, booking_id):
     _ensure_paypal_configured()
+
+    if not settings.PAYPAL_CLIENT_ID or not settings.PAYPAL_CLIENT_SECRET:
+        messages.error(request, "PayPal is not configured. Please contact the administrator.")
+        return redirect("bookings:detail", pk=booking_id)
+
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     if booking.status != "pending":
-        return JsonResponse({"error": "Invalid booking state"}, status=400)
+        messages.error(request, "This booking cannot be paid for (invalid state).")
+        return redirect("bookings:detail", pk=booking_id)
+
+    # Ensure fare is not zero — PayPal rejects $0 payments
+    fare = booking.total_fare
+    if not fare or fare <= 0:
+        # If fare is 0 (stops have no fare set), confirm booking directly
+        booking.status = "confirmed"
+        booking.save()
+        messages.success(request, f"Booking {booking.booking_id} confirmed! (No payment required)")
+        return redirect("bookings:detail", pk=booking.pk)
 
     payment = paypalrestsdk.Payment({
         "intent": "sale",
@@ -150,11 +165,11 @@ def create_payment(request, booking_id):
             "item_list": {"items": [{
                 "name": f"Booking {booking.booking_id}",
                 "sku": f"{booking.booking_id}",
-                "price": str(booking.total_fare),
+                "price": str(fare),
                 "currency": "USD",
                 "quantity": 1
             }]},
-            "amount": {"total": str(booking.total_fare), "currency": "USD"},
+            "amount": {"total": str(fare), "currency": "USD"},
             "description": f"Payment for booking {booking.booking_id}"
         }]
     })
@@ -163,14 +178,17 @@ def create_payment(request, booking_id):
         Payment.objects.create(
             booking=booking,
             order_id=payment.id,
-            amount=booking.total_fare,
+            amount=fare,
             status="created"
         )
         for link in payment.links:
             if link.rel == "approval_url":
                 return redirect(link.href)
-    else:
-        return JsonResponse({"error": "Error creating PayPal payment"}, status=500)
+
+    # Show actual PayPal error
+    error_detail = getattr(payment, 'error', 'Unknown error')
+    messages.error(request, f"PayPal error: {error_detail}")
+    return redirect("bookings:detail", pk=booking.pk)
 
 
 @login_required
