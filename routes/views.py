@@ -59,8 +59,10 @@ def add_route(request):
 
                         # Calculate distance from previous stop
                         dist = 0
+                        fare = 0
                         if prev_lat is not None and prev_lng is not None:
                             dist = round(_haversine_km(prev_lat, prev_lng, lat, lng), 2)
+                            fare = round(dist * 5, 2)  # ₹5 per km
 
                         Stop.objects.create(
                             route=route,
@@ -69,6 +71,7 @@ def add_route(request):
                             longitude=lng,
                             sequence_number=index + 1,
                             distance_from_previous_km=dist,
+                            fare_from_previous=fare,
                         )
                         prev_lat, prev_lng = lat, lng
                 except Exception:
