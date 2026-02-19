@@ -2,47 +2,58 @@ document.addEventListener("DOMContentLoaded", function () {
   const fromStop = document.getElementById("id_from_stop");
   const toStop = document.getElementById("id_to_stop");
   const seatsInput = document.getElementById("id_seats_booked");
-  const fareBox = document.getElementById("fare");
   const availabilityBox = document.getElementById("available-seats");
 
-  // Fix: read bus-id from the container div, not body
   const container = document.querySelector("[data-bus-id]");
   const busId = container ? container.dataset.busId : null;
 
+  // Save ALL original to-stop options when page loads
+  const allToOptions = Array.from(toStop.options).map(opt => ({
+    value: opt.value,
+    text: opt.text,
+    sequence: parseInt(opt.dataset.sequence) || 0
+  }));
+
   function filterToStops() {
     const selectedOption = fromStop.options[fromStop.selectedIndex];
-    const fromSeq = selectedOption ? parseInt(selectedOption.dataset.sequence) : 0;
+    const fromSeq = selectedOption ? parseInt(selectedOption.dataset.sequence) || 0 : 0;
 
-    for (let option of toStop.options) {
-      if (!option.value) {
-        // Keep the empty "--------" option visible
-        option.style.display = "block";
-        continue;
+    // Clear and rebuild the "To stop" dropdown
+    toStop.innerHTML = "";
+    allToOptions.forEach(function (optData) {
+      if (!optData.value || optData.sequence > fromSeq) {
+        const newOpt = document.createElement("option");
+        newOpt.value = optData.value;
+        newOpt.text = optData.text;
+        if (optData.sequence) newOpt.dataset.sequence = optData.sequence;
+        toStop.appendChild(newOpt);
       }
-      const toSeq = parseInt(option.dataset.sequence);
-      option.style.display = toSeq > fromSeq ? "block" : "none";
-    }
+    });
+
     toStop.value = "";
-    updateFareAndSeats();
+    updateSeats();
   }
 
-  function updateFareAndSeats() {
+  function updateSeats() {
     if (!fromStop.value || !toStop.value || !seatsInput.value) return;
+    if (!busId) return;
 
-    // Update available seats
-    if (busId) {
-      fetch(`/buses/api/seats/${busId}/`)
-        .then(res => res.json())
-        .then(data => {
-          if (availabilityBox) availabilityBox.innerText = `${data.available_seats} / ${data.total_seats} seats available`;
-          if (parseInt(seatsInput.value) > data.available_seats) seatsInput.setCustomValidity("Not enough seats available for this route.");
-          else seatsInput.setCustomValidity("");
-        })
-        .catch(() => { if (availabilityBox) availabilityBox.innerText = ""; });
-    }
+    fetch(`/buses/api/seats/${busId}/`)
+      .then(res => res.json())
+      .then(data => {
+        if (availabilityBox)
+          availabilityBox.innerText = `${data.available_seats} / ${data.total_seats} seats available`;
+        if (parseInt(seatsInput.value) > data.available_seats)
+          seatsInput.setCustomValidity("Not enough seats available.");
+        else
+          seatsInput.setCustomValidity("");
+      })
+      .catch(() => {
+        if (availabilityBox) availabilityBox.innerText = "Unable to load seats";
+      });
   }
 
   fromStop.addEventListener("change", filterToStops);
-  toStop.addEventListener("change", updateFareAndSeats);
-  seatsInput.addEventListener("input", updateFareAndSeats);
+  toStop.addEventListener("change", updateSeats);
+  seatsInput.addEventListener("input", updateSeats);
 });
