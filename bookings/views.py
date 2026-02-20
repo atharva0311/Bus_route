@@ -13,6 +13,8 @@ from django.conf import settings
 from django.urls import reverse
 import uuid
 import paypalrestsdk
+import os
+import google.generativeai as genai
 
 # Configure PayPal lazily — only when credentials are available
 _paypal_configured = False
@@ -223,8 +225,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 
-# We will swap this with your real key later!
-genai.configure(api_key="AIzaSyDRtH_YpHGyRkPa7tvoIFRfwK7Fe1agieQ") 
+# Grab the secret key from Render's hidden vault!
+my_secret_key = os.getenv("GEMINI_API_KEY")
+
+if my_secret_key:
+    genai.configure(api_key=my_secret_key)
 
 @csrf_exempt 
 def chat_with_gemini(request):
