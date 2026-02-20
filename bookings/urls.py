@@ -17,4 +17,7 @@ urlpatterns = [
     path("payment/<int:booking_id>/", views.create_payment, name="create_payment"),
     path("payment/success/", views.payment_success, name="payment_success"),
     path("payment/cancel/", views.payment_cancel, name="payment_cancel"),
+    
+    # 🚀 Here is the missing line! 
+    path('api/chat/', views.chat_with_gemini, name='chat_api'), 
 ]
