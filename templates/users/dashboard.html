@@ -195,25 +195,56 @@
 </div>
 
 <script>
+document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
     const micBtn = document.getElementById('mic-btn');
 
-    function addMessage(text, isUser) {
-        const msgDiv = document.createElement('div');
-        msgDiv.innerText = text;
-        msgDiv.style.padding = '10px';
-        msgDiv.style.borderRadius = '10px';
-        msgDiv.style.maxWidth = '85%';
-        msgDiv.style.marginBottom = '5px';
-        msgDiv.style.alignSelf = isUser ? 'flex-end' : 'flex-start';
-        msgDiv.style.background = isUser ? '#007bff' : '#e9ecef';
-        msgDiv.style.color = isUser ? 'white' : 'black';
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    // --- VOICE RECOGNITION ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Your browser does not support voice input. Please use Google Chrome.");
+        micBtn.style.display = 'none';
+    } else {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-IN'; 
+        recognition.continuous = false;
+
+        micBtn.addEventListener('click', function() {
+            try {
+                recognition.start();
+                micBtn.innerText = '🔴';
+                micBtn.style.background = '#dc3545';
+                console.log("Listening started...");
+            } catch (err) {
+                // If it's already running, this stops the crash
+                console.log("Recognition already active");
+            }
+        });
+
+        recognition.onresult = (event) => {
+            const spokenText = event.results[0][0].transcript;
+            chatInput.value = spokenText;
+            sendMessage(); // Automatically sends the text!
+        };
+
+        recognition.onerror = (event) => {
+            // THIS WILL TELL US THE EXACT PROBLEM
+            alert("Mic Error: " + event.error);
+            resetMic();
+        };
+
+        recognition.onend = resetMic;
+
+        function resetMic() {
+            micBtn.innerText = '🎤';
+            micBtn.style.background = '#28a745';
+        }
     }
 
+    // --- SEND LOGIC ---
     async function sendMessage() {
         const text = chatInput.value.trim();
         if (!text) return;
@@ -222,53 +253,28 @@
         chatInput.value = '';
 
         try {
-            // This matches the URL in your bookings/urls.py
             const response = await fetch("/bookings/api/chat/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: text })
             });
-
             const data = await response.json();
-            if (data.reply) {
-                addMessage(data.reply, false);
-            } else {
-                addMessage("Error: " + data.error, false);
-            }
+            if (data.reply) addMessage(data.reply, false);
         } catch (error) {
             addMessage("Connection failed.", false);
         }
     }
 
+    function addMessage(text, isUser) {
+        const msgDiv = document.createElement('div');
+        msgDiv.innerText = text;
+        msgDiv.style.cssText = `padding:10px; border-radius:10px; max-width:85%; margin-bottom:5px; align-self:${isUser ? 'flex-end' : 'flex-start'}; background:${isUser ? '#007bff' : '#e9ecef'}; color:${isUser ? 'white' : 'black'};`;
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
     sendBtn.addEventListener('click', sendMessage);
     chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
-
-    // VOICE RECOGNITION SETUP
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        
-        // Change 'en-IN' to 'mr-IN' if you want it to listen for Marathi!
-        recognition.lang = 'en-IN'; 
-        
-        micBtn.addEventListener('click', () => {
-            recognition.start();
-            micBtn.innerText = '🔴';
-            chatInput.placeholder = "Listening...";
-        });
-
-        recognition.onresult = (event) => {
-            const spokenText = event.results[0][0].transcript;
-            chatInput.value = spokenText;
-            sendMessage(); // Auto-send once they stop talking
-        };
-
-        recognition.onend = () => {
-            micBtn.innerText = '🎤';
-            chatInput.placeholder = "Type or speak...";
-        };
-    } else {
-        micBtn.style.display = 'none';
-    }
+});
 </script>
 {% endblock %}
