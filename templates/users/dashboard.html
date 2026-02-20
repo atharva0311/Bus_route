@@ -1,118 +1,28 @@
 {% extends 'base.html' %}
-
-{% block title %}Dashboard - BusTrack{% endblock %}
-
 {% block content %}
-<div class="container py-4">
-    <div class="row mb-4">
-        <div class="col">
-            <h2>Welcome, {{ user.first_name|default:user.username }}!</h2>
-            <p class="text-muted">Manage your bookings and track your buses</p>
-        </div>
-    </div>
-    
-    <div class="row g-4 mb-4">
-        <div class="col-md-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <h3 class="mb-0">{{ total_bookings }}</h3>
-                    <p class="text-muted mb-0">Total Bookings</p>
-                </div>
+<div class="container py-4" style="margin-right: 340px;">
+    <h2>Welcome, {{ user.username }}!</h2>
+    <div class="card my-4">
+        <div class="card-header">Recent Bookings</div>
+        <div class="card-body">
             </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card stat-card h-100">
-                <div class="card-body">
-                    <h3 class="mb-0">{{ active_bookings }}</h3>
-                    <p class="text-muted mb-0">Active Bookings</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <a href="{% url 'buses:search' %}" class="btn btn-primary btn-lg">Book New Trip</a>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Bookings</h5>
-                    <a href="{% url 'bookings:list' %}" class="btn btn-sm btn-outline-primary">View All</a>
-                </div>
-                <div class="card-body">
-                    {% if bookings %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Booking ID</th>
-                                    <th>Bus</th>
-                                    <th>Route</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for booking in bookings %}
-                                <tr>
-                                    <td><strong>{{ booking.booking_id }}</strong></td>
-                                    <td>{{ booking.bus.bus_name }}</td>
-                                    <td>{{ booking.bus.route }}</td>
-                                    <td>{{ booking.travel_date }}</td>
-                                    <td>
-                                        <span class="badge bg-{% if booking.status == 'confirmed' %}success{% else %}warning{% endif %}">
-                                            {{ booking.get_status_display }}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <p class="text-center text-muted">No recent bookings found.</p>
-                    {% endif %}
-                </div>
-            </div>
+    <div id="kmt-sidebar" style="position:fixed; top:0; right:0; width:320px; height:100vh; background:#f8f9fa; border-left:2px solid #28a745; display:flex; flex-direction:column; z-index:1050;">
+        <div style="background:#28a745; color:white; padding:20px; text-align:center; font-weight:bold;">🚌 KMT AI Assistant</div>
+        <div id="chat-messages" style="flex-grow:1; padding:15px; overflow-y:auto; display:flex; flex-direction:column; gap:10px;">
+            <div style="background:#e9ecef; padding:10px; border-radius:10px; align-self:flex-start;">Namaskar! How can I help?</div>
         </div>
-    </div>
-
-    <div id="kmt-sidebar">
-        <div class="sidebar-header">🚌 KMT AI Assistant</div>
-        <div class="sidebar-messages" id="chat-messages">
-            <div class="bot-msg">Namaskar! I am your KMT Assistant. How can I help?</div>
-        </div>
-        <div class="sidebar-input-area">
-            <button id="mic-btn" class="action-btn" type="button" onclick="startVoice()">🎤</button>
-            <input type="text" id="chat-input" placeholder="Type or speak...">
-            <button id="send-btn" class="action-btn" type="button" onclick="sendMessage()">➤</button>
+        <div style="padding:15px; display:flex; gap:5px; border-top:1px solid #ddd;">
+            <button onclick="startVoice()" type="button" style="background:#28a745; color:white; border:none; border-radius:50%; width:40px; height:40px;">🎤</button>
+            <input type="text" id="chat-input" placeholder="Type here..." style="flex-grow:1; border-radius:20px; border:1px solid #ccc; padding:10px;">
+            <button onclick="sendMessage()" type="button" style="background:#28a745; color:white; border:none; border-radius:50%; width:40px; height:40px;">➤</button>
         </div>
     </div>
 </div>
 
-<style>
-    .container { margin-right: 340px !important; transition: 0.3s; }
-    #kmt-sidebar {
-        position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
-        background: #f8f9fa; z-index: 1050; border-left: 2px solid #28a745;
-        display: flex; flex-direction: column;
-    }
-    .sidebar-header { background: #28a745; color: white; padding: 20px; font-weight: bold; text-align: center; }
-    .sidebar-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .bot-msg { background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; color: black; }
-    .user-msg { background: #007bff; color: white; padding: 10px; border-radius: 10px; align-self: flex-end; max-width: 85%; }
-    .sidebar-input-area { padding: 15px; background: #fff; display: flex; gap: 5px; border-top: 1px solid #ddd; }
-    #chat-input { flex-grow: 1; border-radius: 20px; border: 1px solid #ccc; padding: 10px; outline: none; }
-    .action-btn { background: #28a745; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-</style>
-
 <script>
-// 1. Mandatory CSRF Fix for Django
+// 1. GET CSRF TOKEN (Django Security)
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -128,54 +38,51 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// 2. Global Chat Function
+// 2. THE SEND FUNCTION
 async function sendMessage() {
     const input = document.getElementById('chat-input');
-    const messages = document.getElementById('chat-messages');
+    const msgContainer = document.getElementById('chat-messages');
     const text = input.value.trim();
     if (!text) return;
 
+    // Add User Message to UI
     const userDiv = document.createElement('div');
-    userDiv.className = 'user-msg';
+    userDiv.style.cssText = "background:#007bff; color:white; padding:10px; border-radius:10px; align-self:flex-end; margin-left:auto;";
     userDiv.innerText = text;
-    messages.appendChild(userDiv);
+    msgContainer.appendChild(userDiv);
     input.value = '';
-    messages.scrollTop = messages.scrollHeight;
 
     try {
         const response = await fetch("/bookings/api/chat/", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken') },
+            headers: { 
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCookie('csrftoken') 
+            },
             body: JSON.stringify({ message: text })
         });
+
+        if (!response.ok) {
+            // THIS WILL TELL US THE ERROR CODE (e.g., 403, 404, 500)
+            alert("Server Error: " + response.status);
+            return;
+        }
+
         const data = await response.json();
         const botDiv = document.createElement('div');
-        botDiv.className = 'bot-msg';
+        botDiv.style.cssText = "background:#e9ecef; color:black; padding:10px; border-radius:10px; align-self:flex-start;";
         botDiv.innerText = data.reply || "Error: " + data.error;
-        messages.appendChild(botDiv);
-        messages.scrollTop = messages.scrollHeight;
-    } catch (e) { console.error(e); }
+        msgContainer.appendChild(botDiv);
+        msgContainer.scrollTop = msgContainer.scrollHeight;
+
+    } catch (e) {
+        alert("Connection Failed: " + e);
+    }
 }
 
-// 3. Global Voice Function
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = SpeechRecognition ? new SpeechRecognition() : null;
-
-if (recognition) {
-    recognition.lang = 'en-IN'; // Change to 'mr-IN' for Marathi
-    recognition.onstart = () => { document.getElementById('mic-btn').innerText = '🔴'; };
-    recognition.onresult = (event) => { 
-        document.getElementById('chat-input').value = event.results[0][0].transcript; 
-        sendMessage(); 
-    };
-    recognition.onend = () => { document.getElementById('mic-btn').innerText = '🎤'; };
-}
-
-function startVoice() { if (recognition) recognition.start(); else alert("Chrome Required"); }
-
-// Enter Key listener
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
-});
+// 3. VOICE LOGIC
+const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+recognition.onresult = (e) => { document.getElementById('chat-input').value = e.results[0][0].transcript; sendMessage(); };
+function startVoice() { recognition.start(); }
 </script>
 {% endblock %}
