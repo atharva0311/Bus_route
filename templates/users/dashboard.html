@@ -15,24 +15,16 @@
         <div class="col-md-4">
             <div class="card stat-card h-100">
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h3 class="mb-0">{{ total_bookings }}</h3>
-                            <p class="text-muted mb-0">Total Bookings</p>
-                        </div>
-                    </div>
+                    <h3 class="mb-0">{{ total_bookings }}</h3>
+                    <p class="text-muted mb-0">Total Bookings</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card stat-card h-100">
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h3 class="mb-0">{{ active_bookings }}</h3>
-                            <p class="text-muted mb-0">Active Bookings</p>
-                        </div>
-                    </div>
+                    <h3 class="mb-0">{{ active_bookings }}</h3>
+                    <p class="text-muted mb-0">Active Bookings</p>
                 </div>
             </div>
         </div>
@@ -63,7 +55,6 @@
                                     <th>Route</th>
                                     <th>Date</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -74,12 +65,9 @@
                                     <td>{{ booking.bus.route }}</td>
                                     <td>{{ booking.travel_date }}</td>
                                     <td>
-                                        <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% else %}secondary{% endif %}">
+                                        <span class="badge bg-{% if booking.status == 'confirmed' %}success{% else %}warning{% endif %}">
                                             {{ booking.get_status_display }}
                                         </span>
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-sm btn-outline-primary">View</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -87,7 +75,7 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-center text-muted">No bookings found.</p>
+                    <p class="text-center text-muted">No recent bookings found.</p>
                     {% endif %}
                 </div>
             </div>
@@ -100,16 +88,15 @@
             <div class="bot-msg">Namaskar! I am your KMT Assistant. How can I help?</div>
         </div>
         <div class="sidebar-input-area">
-            <button id="mic-btn" class="action-btn" type="button">🎤</button>
+            <button id="mic-btn" class="action-btn" type="button" onclick="startVoice()">🎤</button>
             <input type="text" id="chat-input" placeholder="Type or speak...">
-            <button id="send-btn" class="action-btn" type="button">➤</button>
+            <button id="send-btn" class="action-btn" type="button" onclick="sendMessage()">➤</button>
         </div>
     </div>
 </div>
 
 <style>
-    /* Fixed Sidebar Styling */
-    .container { margin-right: 340px !important; }
+    .container { margin-right: 340px !important; transition: 0.3s; }
     #kmt-sidebar {
         position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
         background: #f8f9fa; z-index: 1050; border-left: 2px solid #28a745;
@@ -117,15 +104,15 @@
     }
     .sidebar-header { background: #28a745; color: white; padding: 20px; font-weight: bold; text-align: center; }
     .sidebar-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-    .bot-msg { background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; }
+    .bot-msg { background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; color: black; }
     .user-msg { background: #007bff; color: white; padding: 10px; border-radius: 10px; align-self: flex-end; max-width: 85%; }
     .sidebar-input-area { padding: 15px; background: #fff; display: flex; gap: 5px; border-top: 1px solid #ddd; }
-    #chat-input { flex-grow: 1; border-radius: 20px; border: 1px solid #ccc; padding: 5px 15px; }
-    .action-btn { background: #28a745; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; }
+    #chat-input { flex-grow: 1; border-radius: 20px; border: 1px solid #ccc; padding: 10px; outline: none; }
+    .action-btn { background: #28a745; color: white; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 </style>
 
 <script>
-// 1. THE SECURITY KEY (Mandatory for Django)
+// 1. Mandatory CSRF Fix for Django
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -141,69 +128,54 @@ function getCookie(name) {
     return cookieValue;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const chatMessages = document.getElementById('chat-messages');
-    const chatInput = document.getElementById('chat-input');
-    const sendBtn = document.getElementById('send-btn');
+// 2. Global Chat Function
+async function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const messages = document.getElementById('chat-messages');
+    const text = input.value.trim();
+    if (!text) return;
 
-    // 2. THE SUBMIT FUNCTION
-    async function sendMessage() {
-        const text = chatInput.value.trim();
-        if (!text) return; // Don't send empty messages
+    const userDiv = document.createElement('div');
+    userDiv.className = 'user-msg';
+    userDiv.innerText = text;
+    messages.appendChild(userDiv);
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
 
-        // Add user message to UI immediately
-        const userDiv = document.createElement('div');
-        userDiv.className = 'user-msg';
-        userDiv.innerText = text;
-        userDiv.style.cssText = "background: #007bff; color: white; padding: 10px; border-radius: 10px; align-self: flex-end; max-width: 85%; margin-bottom: 10px; margin-left: auto;";
-        chatMessages.appendChild(userDiv);
-        
-        chatInput.value = ''; // Clear input box
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    try {
+        const response = await fetch("/bookings/api/chat/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie('csrftoken') },
+            body: JSON.stringify({ message: text })
+        });
+        const data = await response.json();
+        const botDiv = document.createElement('div');
+        botDiv.className = 'bot-msg';
+        botDiv.innerText = data.reply || "Error: " + data.error;
+        messages.appendChild(botDiv);
+        messages.scrollTop = messages.scrollHeight;
+    } catch (e) { console.error(e); }
+}
 
-        try {
-            // Talk to your Django view
-            const response = await fetch("/bookings/api/chat/", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie('csrftoken') // Fixes the 403 Forbidden error
-                },
-                body: JSON.stringify({ message: text })
-            });
+// 3. Global Voice Function
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
-            if (!response.ok) {
-                throw new Error(`Server Error: ${response.status}`);
-            }
+if (recognition) {
+    recognition.lang = 'en-IN'; // Change to 'mr-IN' for Marathi
+    recognition.onstart = () => { document.getElementById('mic-btn').innerText = '🔴'; };
+    recognition.onresult = (event) => { 
+        document.getElementById('chat-input').value = event.results[0][0].transcript; 
+        sendMessage(); 
+    };
+    recognition.onend = () => { document.getElementById('mic-btn').innerText = '🎤'; };
+}
 
-            const data = await response.json();
-            
-            // Add bot reply to UI
-            const botDiv = document.createElement('div');
-            botDiv.className = 'bot-msg';
-            botDiv.innerText = data.reply || "I encountered an issue. Please try again.";
-            botDiv.style.cssText = "background: #e9ecef; color: black; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; margin-bottom: 10px;";
-            chatMessages.appendChild(botDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+function startVoice() { if (recognition) recognition.start(); else alert("Chrome Required"); }
 
-        } catch (error) {
-            console.error("Submission Error:", error);
-            const errorDiv = document.createElement('div');
-            errorDiv.innerText = "Error: " + error.message;
-            errorDiv.style.color = "red";
-            chatMessages.appendChild(errorDiv);
-        }
-    }
-
-    // 3. ATTACH THE LISTENERS
-    sendBtn.addEventListener('click', sendMessage);
-    
-    // Also allow sending with the 'Enter' key
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            sendMessage();
-        }
-    });
+// Enter Key listener
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('chat-input').addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
 });
 </script>
 {% endblock %}
