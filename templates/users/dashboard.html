@@ -109,4 +109,166 @@
         </div>
     </div>
 </div>
+<style>
+    /* This pushes your main dashboard content to the left so the sidebar doesn't cover it */
+    .container, .main-content { 
+        margin-right: 320px !important; 
+        transition: 0.3s;
+    }
+
+    #kmt-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 320px;
+        height: 100vh;
+        background-color: #f8f9fa;
+        box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        z-index: 1050;
+        border-left: 2px solid #28a745;
+    }
+
+    .sidebar-header {
+        background-color: #28a745; /* KMT Green */
+        color: white;
+        padding: 20px 15px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
+
+    .sidebar-messages {
+        flex-grow: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: #ffffff;
+    }
+
+    .sidebar-input-area {
+        padding: 15px;
+        background: #f1f1f1;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    #chat-input {
+        flex-grow: 1;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        border-radius: 20px;
+        outline: none;
+    }
+
+    .action-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+
+<div id="kmt-sidebar">
+    <div class="sidebar-header">🚌 KMT AI Assistant</div>
+    <div class="sidebar-messages" id="chat-messages">
+        <div style="background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%;">
+            Namaskar! I am your KMT Assistant. How can I help you with your journey today?
+        </div>
+    </div>
+    <div class="sidebar-input-area">
+        <button id="mic-btn" class="action-btn">🎤</button>
+        <input type="text" id="chat-input" placeholder="Type or speak...">
+        <button id="send-btn" class="action-btn">➤</button>
+    </div>
+</div>
+
+<script>
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const micBtn = document.getElementById('mic-btn');
+
+    function addMessage(text, isUser) {
+        const msgDiv = document.createElement('div');
+        msgDiv.innerText = text;
+        msgDiv.style.padding = '10px';
+        msgDiv.style.borderRadius = '10px';
+        msgDiv.style.maxWidth = '85%';
+        msgDiv.style.marginBottom = '5px';
+        msgDiv.style.alignSelf = isUser ? 'flex-end' : 'flex-start';
+        msgDiv.style.background = isUser ? '#007bff' : '#e9ecef';
+        msgDiv.style.color = isUser ? 'white' : 'black';
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+
+        addMessage(text, true);
+        chatInput.value = '';
+
+        try {
+            // This matches the URL in your bookings/urls.py
+            const response = await fetch("/bookings/api/chat/", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: text })
+            });
+
+            const data = await response.json();
+            if (data.reply) {
+                addMessage(data.reply, false);
+            } else {
+                addMessage("Error: " + data.error, false);
+            }
+        } catch (error) {
+            addMessage("Connection failed.", false);
+        }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+    // VOICE RECOGNITION SETUP
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        
+        // Change 'en-IN' to 'mr-IN' if you want it to listen for Marathi!
+        recognition.lang = 'en-IN'; 
+        
+        micBtn.addEventListener('click', () => {
+            recognition.start();
+            micBtn.innerText = '🔴';
+            chatInput.placeholder = "Listening...";
+        });
+
+        recognition.onresult = (event) => {
+            const spokenText = event.results[0][0].transcript;
+            chatInput.value = spokenText;
+            sendMessage(); // Auto-send once they stop talking
+        };
+
+        recognition.onend = () => {
+            micBtn.innerText = '🎤';
+            chatInput.placeholder = "Type or speak...";
+        };
+    } else {
+        micBtn.style.display = 'none';
+    }
+</script>
 {% endblock %}
