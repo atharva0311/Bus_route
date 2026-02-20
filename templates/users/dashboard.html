@@ -125,7 +125,7 @@
 </style>
 
 <script>
-// Mandatory CSRF Fix for Django
+// 1. THE SECURITY KEY (Mandatory for Django)
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -145,51 +145,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
-    const micBtn = document.getElementById('mic-btn');
 
+    // 2. THE SUBMIT FUNCTION
     async function sendMessage() {
         const text = chatInput.value.trim();
-        if (!text) return;
-        
+        if (!text) return; // Don't send empty messages
+
+        // Add user message to UI immediately
         const userDiv = document.createElement('div');
         userDiv.className = 'user-msg';
         userDiv.innerText = text;
+        userDiv.style.cssText = "background: #007bff; color: white; padding: 10px; border-radius: 10px; align-self: flex-end; max-width: 85%; margin-bottom: 10px; margin-left: auto;";
         chatMessages.appendChild(userDiv);
-        chatInput.value = '';
+        
+        chatInput.value = ''; // Clear input box
         chatMessages.scrollTop = chatMessages.scrollHeight;
 
         try {
+            // Talk to your Django view
             const response = await fetch("/bookings/api/chat/", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie('csrftoken') 
+                    "X-CSRFToken": getCookie('csrftoken') // Fixes the 403 Forbidden error
                 },
                 body: JSON.stringify({ message: text })
             });
+
+            if (!response.ok) {
+                throw new Error(`Server Error: ${response.status}`);
+            }
+
             const data = await response.json();
+            
+            // Add bot reply to UI
             const botDiv = document.createElement('div');
             botDiv.className = 'bot-msg';
-            botDiv.innerText = data.reply || "Error: " + data.error;
+            botDiv.innerText = data.reply || "I encountered an issue. Please try again.";
+            botDiv.style.cssText = "background: #e9ecef; color: black; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; margin-bottom: 10px;";
             chatMessages.appendChild(botDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-        } catch (e) { console.error(e); }
+
+        } catch (error) {
+            console.error("Submission Error:", error);
+            const errorDiv = document.createElement('div');
+            errorDiv.innerText = "Error: " + error.message;
+            errorDiv.style.color = "red";
+            chatMessages.appendChild(errorDiv);
+        }
     }
 
+    // 3. ATTACH THE LISTENERS
     sendBtn.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'en-IN';
-        micBtn.addEventListener('click', () => { recognition.start(); micBtn.innerText = '🔴'; });
-        recognition.onresult = (event) => {
-            chatInput.value = event.results[0][0].transcript;
+    
+    // Also allow sending with the 'Enter' key
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
             sendMessage();
-        };
-        recognition.onend = () => { micBtn.innerText = '🎤'; };
-    }
+        }
+    });
 });
 </script>
 {% endblock %}
