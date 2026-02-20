@@ -15,187 +15,60 @@
         <div class="col-md-4">
             <div class="card stat-card h-100">
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-ticket-perforated text-primary" style="font-size: 2rem;"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ total_bookings }}</h3>
-                            <p class="text-muted mb-0">Total Bookings</p>
-                        </div>
-                    </div>
+                    <h3 class="mb-0">{{ total_bookings }}</h3>
+                    <p class="text-muted mb-0">Total Bookings</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card stat-card h-100">
                 <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="bi bi-clock text-success" style="font-size: 2rem;"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h3 class="mb-0">{{ active_bookings }}</h3>
-                            <p class="text-muted mb-0">Active Bookings</p>
-                        </div>
-                    </div>
+                    <h3 class="mb-0">{{ active_bookings }}</h3>
+                    <p class="text-muted mb-0">Active Bookings</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card h-100">
                 <div class="card-body d-flex align-items-center justify-content-center">
-                    <a href="{% url 'buses:search' %}" class="btn btn-primary btn-lg">
-                        <i class="bi bi-search me-2"></i>Book New Trip
-                    </a>
+                    <a href="{% url 'buses:search' %}" class="btn btn-primary btn-lg">Book New Trip</a>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Bookings</h5>
-                    <a href="{% url 'bookings:list' %}" class="btn btn-sm btn-outline-primary">View All</a>
-                </div>
-                <div class="card-body">
-                    {% if bookings %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Booking ID</th>
-                                    <th>Bus</th>
-                                    <th>Route</th>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for booking in bookings %}
-                                <tr>
-                                    <td><strong>{{ booking.booking_id }}</strong></td>
-                                    <td>{{ booking.bus.bus_name }}</td>
-                                    <td>{{ booking.bus.route }}</td>
-                                    <td>{{ booking.travel_date }}</td>
-                                    <td>
-                                        <span class="badge bg-{% if booking.status == 'confirmed' %}success{% elif booking.status == 'pending' %}warning{% elif booking.status == 'cancelled' %}danger{% else %}secondary{% endif %}">
-                                            {{ booking.get_status_display }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'bookings:detail' booking.pk %}" class="btn btn-sm btn-outline-primary">View</a>
-                                        {% if booking.status in 'confirmed,pending' %}
-                                        <a href="{% url 'bookings:track' booking.pk %}" class="btn btn-sm btn-outline-success">Track</a>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="text-center py-5">
-                        <i class="bi bi-ticket-perforated text-muted" style="font-size: 3rem;"></i>
-                        <p class="text-muted mt-3">No bookings yet. Start by searching for buses!</p>
-                        <a href="{% url 'buses:search' %}" class="btn btn-primary">Search Buses</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
+
+    <div id="kmt-sidebar">
+        <div class="sidebar-header">🚌 KMT AI Assistant</div>
+        <div class="sidebar-messages" id="chat-messages">
+            <div class="bot-msg">Namaskar! How can I help with your journey?</div>
+        </div>
+        <div class="sidebar-input-area">
+            <button id="mic-btn" class="action-btn" type="button">🎤</button>
+            <input type="text" id="chat-input" placeholder="Type or speak...">
+            <button id="send-btn" class="action-btn" type="button">➤</button>
         </div>
     </div>
 </div>
+
 <style>
-    /* This pushes your main dashboard content to the left so the sidebar doesn't cover it */
-    .container, .main-content { 
-        margin-right: 320px !important; 
-        transition: 0.3s;
-    }
-
+    /* Fixed Sidebar Styling */
+    .container { margin-right: 340px !important; }
     #kmt-sidebar {
-        position: fixed;
-        top: 0;
-        right: 0;
-        width: 320px;
-        height: 100vh;
-        background-color: #f8f9fa;
-        box-shadow: -4px 0 15px rgba(0,0,0,0.1);
-        display: flex;
-        flex-direction: column;
-        z-index: 1050;
-        border-left: 2px solid #28a745;
+        position: fixed; top: 0; right: 0; width: 320px; height: 100vh;
+        background: #f8f9fa; z-index: 1050; border-left: 2px solid #28a745;
+        display: flex; flex-direction: column;
     }
-
-    .sidebar-header {
-        background-color: #28a745; /* KMT Green */
-        color: white;
-        padding: 20px 15px;
-        text-align: center;
-        font-size: 1.2rem;
-        font-weight: bold;
-    }
-
-    .sidebar-messages {
-        flex-grow: 1;
-        padding: 15px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        background: #ffffff;
-    }
-
-    .sidebar-input-area {
-        padding: 15px;
-        background: #f1f1f1;
-        border-top: 1px solid #dee2e6;
-        display: flex;
-        gap: 8px;
-        align-items: center;
-    }
-
-    #chat-input {
-        flex-grow: 1;
-        padding: 10px;
-        border: 1px solid #ced4da;
-        border-radius: 20px;
-        outline: none;
-    }
-
-    .action-btn {
-        background: #28a745;
-        color: white;
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        cursor: pointer;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
+    .sidebar-header { background: #28a745; color: white; padding: 20px; font-weight: bold; text-align: center; }
+    .sidebar-messages { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .bot-msg { background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%; }
+    .user-msg { background: #007bff; color: white; padding: 10px; border-radius: 10px; align-self: flex-end; max-width: 85%; }
+    .sidebar-input-area { padding: 15px; background: #fff; display: flex; gap: 5px; border-top: 1px solid #ddd; }
+    #chat-input { flex-grow: 1; border-radius: 20px; border: 1px solid #ccc; padding: 5px 15px; }
+    .action-btn { background: #28a745; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; }
 </style>
 
-<div id="kmt-sidebar">
-    <div class="sidebar-header">🚌 KMT AI Assistant</div>
-    <div class="sidebar-messages" id="chat-messages">
-        <div style="background: #e9ecef; padding: 10px; border-radius: 10px; align-self: flex-start; max-width: 85%;">
-            Namaskar! I am your KMT Assistant. How can I help you with your journey today?
-        </div>
-    </div>
-    <div class="sidebar-input-area">
-        <button id="mic-btn" class="action-btn">🎤</button>
-        <input type="text" id="chat-input" placeholder="Type or speak...">
-        <button id="send-btn" class="action-btn">➤</button>
-    </div>
-</div>
-
 <script>
-// This helper function is MANDATORY for Django to allow the 'Send' button to work
+// Mandatory CSRF Fix for Django
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -217,88 +90,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.getElementById('send-btn');
     const micBtn = document.getElementById('mic-btn');
 
-    // --- VOICE RECOGNITION ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-        console.log("Voice input not supported.");
-        micBtn.style.display = 'none';
-    } else {
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'en-IN'; // Change to 'mr-IN' for Marathi
-        recognition.continuous = false;
-
-        micBtn.addEventListener('click', function() {
-            try {
-                recognition.start();
-                micBtn.innerText = '🔴';
-                micBtn.style.background = '#dc3545';
-            } catch (err) {
-                recognition.stop(); // If it glitched, stop it so user can click again
-            }
-        });
-
-        recognition.onresult = (event) => {
-            const spokenText = event.results[0][0].transcript;
-            chatInput.value = spokenText;
-            sendMessage(); 
-        };
-
-        recognition.onerror = (event) => {
-            // This will now show you if the browser is blocking the mic
-            if(event.error === 'not-allowed') {
-                alert("Please click the camera/mic icon in your browser address bar and 'Allow' the microphone.");
-            }
-            resetMic();
-        };
-
-        recognition.onend = resetMic;
-
-        function resetMic() {
-            micBtn.innerText = '🎤';
-            micBtn.style.background = '#28a745';
-        }
-    }
-
-    // --- SEND LOGIC ---
+    // 1. Send Logic
     async function sendMessage() {
         const text = chatInput.value.trim();
         if (!text) return;
-
-        addMessage(text, true);
+        
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-msg';
+        userDiv.innerText = text;
+        chatMessages.appendChild(userDiv);
         chatInput.value = '';
+        chatMessages.scrollTop = chatMessages.scrollHeight;
 
         try {
             const response = await fetch("/bookings/api/chat/", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/json",
-                    "X-CSRFToken": getCookie('csrftoken') // THIS IS THE FIX
+                    "X-CSRFToken": getCookie('csrftoken') 
                 },
                 body: JSON.stringify({ message: text })
             });
             const data = await response.json();
-            if (data.reply) {
-                addMessage(data.reply, false);
-            } else {
-                addMessage("Error: " + (data.error || "Unknown error"), false);
-            }
-        } catch (error) {
-            addMessage("Server connection failed.", false);
-        }
-    }
-
-    function addMessage(text, isUser) {
-        const msgDiv = document.createElement('div');
-        msgDiv.innerText = text;
-        msgDiv.style.cssText = `padding:10px; border-radius:10px; max-width:85%; margin-bottom:5px; align-self:${isUser ? 'flex-end' : 'flex-start'}; background:${isUser ? '#007bff' : '#e9ecef'}; color:${isUser ? 'white' : 'black'};`;
-        chatMessages.appendChild(msgDiv);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+            const botDiv = document.createElement('div');
+            botDiv.className = 'bot-msg';
+            botDiv.innerText = data.reply || "Error: " + data.error;
+            chatMessages.appendChild(botDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        } catch (e) { console.error(e); }
     }
 
     sendBtn.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+    chatInput.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+    // 2. Voice Logic
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-IN';
+        micBtn.addEventListener('click', () => { 
+            recognition.start(); 
+            micBtn.innerText = '🔴';
+        });
+        recognition.onresult = (event) => {
+            chatInput.value = event.results[0][0].transcript;
+            sendMessage();
+        };
+        recognition.onend = () => { micBtn.innerText = '🎤'; };
+        recognition.onerror = () => { micBtn.innerText = '🎤'; };
+    }
 });
 </script>
-{% endblock %}
 {% endblock %}
