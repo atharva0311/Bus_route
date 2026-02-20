@@ -195,6 +195,22 @@
 </div>
 
 <script>
+// This helper function is MANDATORY for Django to allow the 'Send' button to work
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
@@ -205,11 +221,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     if (!SpeechRecognition) {
-        alert("Your browser does not support voice input. Please use Google Chrome.");
+        console.log("Voice input not supported.");
         micBtn.style.display = 'none';
     } else {
         const recognition = new SpeechRecognition();
-        recognition.lang = 'en-IN'; 
+        recognition.lang = 'en-IN'; // Change to 'mr-IN' for Marathi
         recognition.continuous = false;
 
         micBtn.addEventListener('click', function() {
@@ -217,22 +233,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 recognition.start();
                 micBtn.innerText = '🔴';
                 micBtn.style.background = '#dc3545';
-                console.log("Listening started...");
             } catch (err) {
-                // If it's already running, this stops the crash
-                console.log("Recognition already active");
+                recognition.stop(); // If it glitched, stop it so user can click again
             }
         });
 
         recognition.onresult = (event) => {
             const spokenText = event.results[0][0].transcript;
             chatInput.value = spokenText;
-            sendMessage(); // Automatically sends the text!
+            sendMessage(); 
         };
 
         recognition.onerror = (event) => {
-            // THIS WILL TELL US THE EXACT PROBLEM
-            alert("Mic Error: " + event.error);
+            // This will now show you if the browser is blocking the mic
+            if(event.error === 'not-allowed') {
+                alert("Please click the camera/mic icon in your browser address bar and 'Allow' the microphone.");
+            }
             resetMic();
         };
 
@@ -255,13 +271,20 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch("/bookings/api/chat/", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie('csrftoken') // THIS IS THE FIX
+                },
                 body: JSON.stringify({ message: text })
             });
             const data = await response.json();
-            if (data.reply) addMessage(data.reply, false);
+            if (data.reply) {
+                addMessage(data.reply, false);
+            } else {
+                addMessage("Error: " + (data.error || "Unknown error"), false);
+            }
         } catch (error) {
-            addMessage("Connection failed.", false);
+            addMessage("Server connection failed.", false);
         }
     }
 
@@ -277,4 +300,5 @@ document.addEventListener('DOMContentLoaded', function() {
     chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 });
 </script>
+{% endblock %}
 {% endblock %}
