@@ -284,73 +284,98 @@
     }
 </style>
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const chatContainer = document.getElementById("ai-chat-container");
-        const toggleBtn = document.getElementById("chat-toggle-btn");
-        const closeBtn = document.getElementById("close-chat-btn");
-        const sendBtn = document.getElementById("send-chat-btn");
-        const chatInput = document.getElementById("chat-input");
-        const messagesDiv = document.getElementById("chat-messages");
+<style>
+    /* 1. Shift your main dashboard left so the sidebar doesn't cover it */
+    .container { /* or whatever your main wrapper class is */
+        margin-right: 320px !important; 
+    }
 
-        // Open and Close Chat
-        toggleBtn.addEventListener("click", () => chatContainer.classList.add("chat-open"));
-        closeBtn.addEventListener("click", () => chatContainer.classList.remove("chat-open"));
+    /* 2. The new permanent side panel */
+    #kmt-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 320px;
+        height: 100vh; /* Full screen height */
+        background-color: #f8f9fa;
+        box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        z-index: 1000;
+        border-left: 2px solid #dee2e6;
+    }
 
-        // Handle Sending Messages
-        async function sendMessage() {
-            const text = chatInput.value.trim();
-            if (!text) return;
+    /* 3. Panel Header */
+    .sidebar-header {
+        background-color: #28a745; /* KMT Green */
+        color: white;
+        padding: 20px 15px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+    }
 
-            // 1. Show User Message
-            addMessage(text, "user-message");
-            chatInput.value = "";
+    /* 4. Chat Message Area */
+    .sidebar-messages {
+        flex-grow: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
 
-            // 2. Show Loading state
-            const loadingId = addMessage("Thinking...", "bot-message");
+    /* 5. Input Area with Voice Button */
+    .sidebar-input-area {
+        padding: 15px;
+        background: white;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
 
-            try {
-                // 3. Send to your Django Backend (which talks to Gemini)
-                const response = await fetch("/bookings/api/chat/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ message: text })
-                });
-                
-                const data = await response.json();
-                
-                // 4. Update UI with Gemini's response
-                document.getElementById(loadingId).remove();
-                if (data.reply) {
-                    addMessage(data.reply, "bot-message");
-                } else {
-                    addMessage("Sorry, I ran into an error!", "bot-message");
-                }
-            } catch (error) {
-                document.getElementById(loadingId).remove();
-                addMessage("Server connection failed.", "bot-message");
-            }
-        }
+    #chat-input {
+        flex-grow: 1;
+        padding: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 20px;
+        outline: none;
+    }
 
-        // Helper to add messages to the window
-        function addMessage(text, className) {
-            const msgDiv = document.createElement("div");
-            msgDiv.className = `message ${className}`;
-            msgDiv.textContent = text;
-            
-            // Generate a random ID just in case we need to remove it (like the loading text)
-            msgDiv.id = "msg-" + Math.random().toString(36).substr(2, 9); 
-            
-            messagesDiv.appendChild(msgDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to bottom
-            return msgDiv.id;
-        }
+    .action-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 42px;
+        height: 42px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        transition: background 0.2s;
+    }
+    .action-btn:hover { background: #218838; }
+</style>
 
-        sendBtn.addEventListener("click", sendMessage);
-        chatInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") sendMessage();
-        });
-    });
-</script>
+<div id="kmt-sidebar">
+    <div class="sidebar-header">
+        🚌 KMT AI Assistant
+    </div>
+    
+    <div class="sidebar-messages" id="chat-messages">
+        <div style="background: #e9ecef; padding: 12px; border-radius: 12px; align-self: flex-start; max-width: 85%; color: black;">
+            Namaskar! I am your KMT Assistant. Tap the microphone or type below to find your bus.
+        </div>
+    </div>
+    
+    <div class="sidebar-input-area">
+        <button id="mic-btn" class="action-btn" title="Tap to Speak">🎤</button>
+        <input type="text" id="chat-input" placeholder="Ask me anything...">
+        <button id="send-btn" class="action-btn" title="Send">➤</button>
+    </div>
+</div>
 </body>
 </html>
