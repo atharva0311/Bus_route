@@ -218,3 +218,30 @@ def payment_success(request):
 def payment_cancel(request):
     messages.warning(request, "Payment cancelled")
     return redirect("bookings:list")
+import google.generativeai as genai
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+
+# We will swap this with your real key later!
+genai.configure(api_key="AIzaSyDRtH_YpHGyRkPa7tvoIFRfwK7Fe1agieQ") 
+
+@csrf_exempt 
+def chat_with_gemini(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_message = data.get('message', '')
+
+            model = genai.GenerativeModel(
+                'gemini-1.5-flash',
+                system_instruction="You are a helpful customer support chatbot for the KMT Bus Booking system. You help passengers check schedules, book tickets, and explain MSBTE student concession passes. Keep your answers brief and friendly."
+            )
+            
+            response = model.generate_content(user_message)
+            return JsonResponse({'reply': response.text, 'status': 'success'})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e), 'status': 'failed'}, status=500)
+            
+    return JsonResponse({'error': 'Only POST requests allowed'}, status=400)
