@@ -239,7 +239,7 @@ def chat_with_gemini(request):
             user_message = data.get('message', '')
 
             model = genai.GenerativeModel(
-                'gemini-1.5-flash',
+               'gemini-2.5-flash',
                 system_instruction="You are a helpful customer support chatbot for the KMT Bus Booking system. You help passengers check schedules, book tickets, and explain MSBTE student concession passes. Keep your answers brief and friendly."
             )
             
