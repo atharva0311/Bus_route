@@ -163,5 +163,194 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block extra_js %}{% endblock %}
+    <div id="ai-chat-container" class="chat-closed">
+    <div id="ai-chat-window">
+        <div class="chat-header">
+            <strong>KMT AI Assistant</strong>
+            <button id="close-chat-btn">&times;</button>
+        </div>
+        <div id="chat-messages">
+            <div class="message bot-message">Hi there! I'm your KMT Bus Assistant. How can I help you with your journey today?</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Ask me anything...">
+            <button id="send-chat-btn">Send</button>
+        </div>
+    </div>
+    
+    <button id="chat-toggle-btn">
+        💬 Chat
+    </button>
+</div>
+
+<style>
+    #ai-chat-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        font-family: Arial, sans-serif;
+    }
+    #chat-toggle-btn {
+        background-color: #198754; /* Bootstrap Success Green */
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: transform 0.2s;
+    }
+    #chat-toggle-btn:hover {
+        transform: scale(1.05);
+    }
+    #ai-chat-window {
+        display: none;
+        width: 320px;
+        height: 400px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        flex-direction: column;
+        overflow: hidden;
+        margin-bottom: 15px;
+    }
+    .chat-open #ai-chat-window { display: flex; }
+    .chat-open #chat-toggle-btn { display: none; }
+    
+    .chat-header {
+        background: #198754;
+        color: white;
+        padding: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    #close-chat-btn {
+        background: none;
+        border: none;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+    }
+    #chat-messages {
+        flex-grow: 1;
+        padding: 15px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: #f8f9fa;
+    }
+    .message {
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 80%;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    .user-message {
+        background: #0d6efd;
+        color: white;
+        align-self: flex-end;
+    }
+    .bot-message {
+        background: #e9ecef;
+        color: black;
+        align-self: flex-start;
+    }
+    .chat-input-area {
+        display: flex;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        background: white;
+    }
+    #chat-input {
+        flex-grow: 1;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        outline: none;
+    }
+    #send-chat-btn {
+        background: #198754;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        margin-left: 8px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const chatContainer = document.getElementById("ai-chat-container");
+        const toggleBtn = document.getElementById("chat-toggle-btn");
+        const closeBtn = document.getElementById("close-chat-btn");
+        const sendBtn = document.getElementById("send-chat-btn");
+        const chatInput = document.getElementById("chat-input");
+        const messagesDiv = document.getElementById("chat-messages");
+
+        // Open and Close Chat
+        toggleBtn.addEventListener("click", () => chatContainer.classList.add("chat-open"));
+        closeBtn.addEventListener("click", () => chatContainer.classList.remove("chat-open"));
+
+        // Handle Sending Messages
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // 1. Show User Message
+            addMessage(text, "user-message");
+            chatInput.value = "";
+
+            // 2. Show Loading state
+            const loadingId = addMessage("Thinking...", "bot-message");
+
+            try {
+                // 3. Send to your Django Backend (which talks to Gemini)
+                const response = await fetch("/bookings/api/chat/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                
+                const data = await response.json();
+                
+                // 4. Update UI with Gemini's response
+                document.getElementById(loadingId).remove();
+                if (data.reply) {
+                    addMessage(data.reply, "bot-message");
+                } else {
+                    addMessage("Sorry, I ran into an error!", "bot-message");
+                }
+            } catch (error) {
+                document.getElementById(loadingId).remove();
+                addMessage("Server connection failed.", "bot-message");
+            }
+        }
+
+        // Helper to add messages to the window
+        function addMessage(text, className) {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${className}`;
+            msgDiv.textContent = text;
+            
+            // Generate a random ID just in case we need to remove it (like the loading text)
+            msgDiv.id = "msg-" + Math.random().toString(36).substr(2, 9); 
+            
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to bottom
+            return msgDiv.id;
+        }
+
+        sendBtn.addEventListener("click", sendMessage);
+        chatInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") sendMessage();
+        });
+    });
+</script>
 </body>
 </html>
